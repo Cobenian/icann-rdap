@@ -2,16 +2,21 @@
 // draft-ietf-regext-rdap-redacted-16
 // I'm not saying this is correct, but let's get something down to get things started.
 
-// use buildstructor::Builder;
+
 use serde::{Deserialize, Serialize};
 
+// Probably going need these soon!
+// use super::{
+//   types::{to_option_status, Common, Link, ObjectCommon},
+//   GetSelfLink, RdapResponseError, SelfLink, ToChild,
+// };
 
-#[derive(Serialize, Deserialize, Builder, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Name {
     description: String,
 }
 
-#[derive(Serialize, Deserialize, Builder, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Reason {
   #[serde(rename = "description")]
   pub description: Option<String>,
@@ -29,7 +34,7 @@ pub enum Method {
     ReplacementValue,
 }
 
-#[derive(Serialize, Deserialize, Builder, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Redaction {
 
   #[serde[rename = "name"]]
@@ -59,6 +64,7 @@ pub struct Redaction {
 impl Default for Name {
   fn default() -> Self {
       Self {
+          description: String::default(),
           // provide default values for the fields of Name
       }
   }
@@ -67,6 +73,8 @@ impl Default for Name {
 impl Default for Reason {
   fn default() -> Self {
       Self {
+          description: None,
+          type_field: None,
           // provide default values for the fields of Reason
       }
   }
@@ -82,7 +90,7 @@ impl Redaction {
   pub fn new() -> Self {
       Self {
           name: Name::default(),
-          reason: Reason::default(),
+          reason: Some(Reason::default()),
           pre_path: None,
           post_path: None,
           path_lang: None,
@@ -92,15 +100,34 @@ impl Redaction {
   }
 }
 
-// No, don't actually do this. Magic Fairyland right now. Tests to come soon
-// fn main() {
-// let redaction = Redaction::new()
-//     .name( Name { description: "foo".to_string()}) // replace with actual value
-//     .reason(Reason::default()) // replace with actual value
-//     .pre_path(Some("$.handle".to_string())) // just fake values for now
-//     .post_path(Some("$.entities[?(@.roles[0]=='registrant".to_string())) // we wouldn't have both pre_path and post_path, but I'm just showing both here
-//     .path_lang(Some("jsonpath".to_string())) 
-//     .replacement_path(Some("$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='contact-uri')]".to_string())) // again 
-//     .method(Method::Removal); // let's get the default value
-// }
+#[cfg(test)]
+#[allow(non_snake_case)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn GIVEN_redaction_WHEN_deserialize_THEN_success() {
+        //todo: acutally do this deserialization test, not just test the language
+        // GIVEN
+        let mut name = Redaction::new();
+        name.name = Name { description: "foo".to_string() };
+
+        // WHEN
+        let mut redaction = name;
+        redaction.reason = Some(Reason::default());
+        redaction.pre_path = Some("$.handle".to_string());
+        redaction.post_path = Some("$.entities[?(@.roles[0]=='registrant".to_string());
+        redaction.path_lang = Some("jsonpath".to_string());
+        redaction.replacement_path = Some("$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='contact-uri')]".to_string());
+        redaction.method = Method::Removal;
+
+        // THEN
+        assert_eq!(redaction.name.description, "foo");
+        assert_eq!(redaction.pre_path, Some("$.handle".to_string()));
+        assert_eq!(redaction.post_path, Some("$.entities[?(@.roles[0]=='registrant".to_string()));
+        assert_eq!(redaction.path_lang, Some("jsonpath".to_string()));
+        assert_eq!(redaction.replacement_path, Some("$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='contact-uri')]".to_string()));
+        assert_eq!(redaction.method, Method::Removal);
+    }
+}
 

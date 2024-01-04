@@ -14,6 +14,7 @@ use self::{
     help::Help,
     nameserver::Nameserver,
     network::Network,
+    // redaction::Redaction, -- soon
     search::{DomainSearchResults, EntitySearchResults, NameserverSearchResults},
     types::{Link, Links, RdapConformance},
 };
@@ -25,6 +26,7 @@ pub mod error;
 pub mod help;
 pub mod nameserver;
 pub mod network;
+pub mod redaction;
 pub mod search;
 pub mod types;
 
