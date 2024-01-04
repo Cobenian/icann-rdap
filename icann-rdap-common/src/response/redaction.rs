@@ -99,15 +99,18 @@ impl Redaction {
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
+    // use serde_json::de::Read;
+
     use super::*;
 
     #[test]
-    fn GIVEN_redaction_WHEN_deserialize_THEN_success() {
-        //todo: acutally do this deserialization test, not just test the language
+    fn GIVEN_redaction_WHEN_set_THEN_success() {
+        // this is a just test that I set up the structures correctly
+        // Should you change them, this will fail
         // GIVEN
         let mut name = Redaction::new();
         name.name = Name {
-            description: "foo".to_string(),
+            description: "Registry Domain ID".to_string(),
         };
 
         // WHEN
@@ -123,7 +126,7 @@ mod tests {
         redaction.method = Method::Removal;
 
         // THEN
-        assert_eq!(redaction.name.description, "foo");
+        assert_eq!(redaction.name.description, "Registry Domain ID");
         assert_eq!(redaction.pre_path, Some("$.handle".to_string()));
         assert_eq!(
             redaction.post_path,
@@ -138,5 +141,70 @@ mod tests {
             )
         );
         assert_eq!(redaction.method, Method::Removal);
+    }
+
+    #[test]
+    fn GIVEN_redaction_WHEN_deserialize_THEN_success() {
+        //this is the actual serialization test
+        // GIVEN
+        let expected = r#"
+        {
+          "name": {
+            "description": "Registry Domain ID"
+          },
+          "prePath": "$.handle",
+          "pathLang": "jsonpath",
+          "postPath": "$.entities[?(@.roles[0]=='registrant",
+          "replacementPath": "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='contact-uri')]",
+          "method": "removal",
+          "reason": {
+            "description": "Server policy"
+          }
+        }
+        "#;
+
+        let mut name = Redaction::new();
+        name.name = Name {
+            description: "Registry Domain ID".to_string(),
+        };
+
+        let reason: Reason = Reason {
+            description: Some("Server policy".to_string()),
+            type_field: None,
+        };
+
+        // WHEN
+        let mut sample_redact = name;
+        sample_redact.pre_path = Some("$.handle".to_string());
+        sample_redact.path_lang = Some("jsonpath".to_string());
+        sample_redact.post_path = Some("$.entities[?(@.roles[0]=='registrant".to_string());
+        sample_redact.replacement_path = Some(
+            "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='contact-uri')]"
+                .to_string(),
+        );
+        sample_redact.method = Method::Removal;
+        sample_redact.reason = Some(reason);
+
+        let actual: Result<Redaction, serde_json::Error> =
+            serde_json::from_str::<Redaction>(expected);
+
+        // THEN
+        let actual = actual.unwrap();
+        assert_eq!(actual, sample_redact); // sanity check
+        assert_eq!(actual.name.description, "Registry Domain ID");
+        assert_eq!(actual.pre_path, Some("$.handle".to_string()));
+        assert_eq!(
+            actual.post_path,
+            Some("$.entities[?(@.roles[0]=='registrant".to_string())
+        );
+        assert_eq!(actual.path_lang, Some("jsonpath".to_string()));
+        assert_eq!(
+            actual.replacement_path,
+            Some(
+                "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='contact-uri')]"
+                    .to_string()
+            )
+        );
+        assert_eq!(actual.method, Method::Removal);
     }
 }
