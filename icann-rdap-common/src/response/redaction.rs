@@ -2,7 +2,10 @@
 // draft-ietf-regext-rdap-redacted-16
 // I'm not saying this is correct, but let's get something down to get things started.
 
+use buildstructor::Builder;
 use serde::{Deserialize, Serialize};
+
+use super::types::Common;
 
 // Probably going need these soon!
 // use super::{
@@ -12,7 +15,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Name {
-    description: String,
+    #[serde(rename = "description")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+
+    #[serde(default)]
+    #[serde(rename = "type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    type_: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -35,24 +45,36 @@ pub enum Method {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Redaction {
+    #[serde(flatten)]
+    pub common: Common,
+
+    // Required
     #[serde[rename = "name"]]
     pub name: Name,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde[rename = "reason"]]
     pub reason: Option<Reason>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde[rename = "prePath"]]
     pub pre_path: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde[rename = "postPath"]]
     pub post_path: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde[rename = "pathLang"]]
     pub path_lang: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde[rename = "replacementPath"]]
     pub replacement_path: Option<String>,
 
+    // according to the draft if it's not provided, by default it's "removal"
+    // XXX the Draft has an example where it's not provided, but it's not clear if that's a mistake
+    // Do we auto-build one if that's the case?
     #[serde(rename = "method")]
     pub method: Method,
 }
@@ -60,8 +82,8 @@ pub struct Redaction {
 impl Default for Name {
     fn default() -> Self {
         Self {
-            description: String::default(),
-            // provide default values for the fields of Name
+            description: Some(String::default()),
+            type_: None,
         }
     }
 }
@@ -78,7 +100,7 @@ impl Default for Reason {
 
 impl Default for Method {
     fn default() -> Self {
-        Self::Removal // or whatever default you want
+        Self::Removal // according to IETF draft this is the default
     }
 }
 
@@ -92,6 +114,29 @@ impl Redaction {
             path_lang: None,
             replacement_path: None,
             method: Method::default(),
+            common: Common::builder().build(), // we have to have this appease the compiler, but I'm not sure we want it
+                                               // common: Common::level0_with_options().extension("redacted").build(),
+        }
+    }
+}
+
+/// Represents RDAP nameserver search results.
+#[derive(Serialize, Deserialize, Builder, Clone, PartialEq, Debug, Eq)]
+pub struct RedactionResults {
+    #[serde(flatten)]
+    pub common: Common,
+
+    #[serde(rename = "redaction")]
+    pub results: Vec<Redaction>,
+}
+
+#[buildstructor::buildstructor]
+impl RedactionResults {
+    #[builder(entry = "basic")]
+    pub fn new_empty() -> Self {
+        Self {
+            common: Common::builder().build(),
+            results: Vec::new(),
         }
     }
 }
@@ -99,18 +144,17 @@ impl Redaction {
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
-    // use serde_json::de::Read;
-
     use super::*;
 
     #[test]
     fn GIVEN_redaction_WHEN_set_THEN_success() {
-        // this is a just test that I set up the structures correctly
+        // this is a just to test that I set up the structures correctly
         // Should you change them, this will fail
         // GIVEN
         let mut name = Redaction::new();
         name.name = Name {
-            description: "Registry Domain ID".to_string(),
+            description: Some("Registry Domain ID".to_string()),
+            type_: None,
         };
 
         // WHEN
@@ -126,7 +170,10 @@ mod tests {
         redaction.method = Method::Removal;
 
         // THEN
-        assert_eq!(redaction.name.description, "Registry Domain ID");
+        assert_eq!(
+            redaction.name.description,
+            Some("Registry Domain ID".to_string())
+        );
         assert_eq!(redaction.pre_path, Some("$.handle".to_string()));
         assert_eq!(
             redaction.post_path,
@@ -165,7 +212,8 @@ mod tests {
 
         let mut name = Redaction::new();
         name.name = Name {
-            description: "Registry Domain ID".to_string(),
+            description: Some("Registry Domain ID".to_string()),
+            type_: None,
         };
 
         let reason: Reason = Reason {
@@ -191,7 +239,10 @@ mod tests {
         // THEN
         let actual = actual.unwrap();
         assert_eq!(actual, sample_redact); // sanity check
-        assert_eq!(actual.name.description, "Registry Domain ID");
+        assert_eq!(
+            actual.name.description,
+            Some("Registry Domain ID".to_string())
+        );
         assert_eq!(actual.pre_path, Some("$.handle".to_string()));
         assert_eq!(
             actual.post_path,

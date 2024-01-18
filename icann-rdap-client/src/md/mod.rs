@@ -15,6 +15,7 @@ pub mod error;
 pub mod help;
 pub mod nameserver;
 pub mod network;
+pub mod redaction;
 pub mod search;
 pub mod string;
 pub mod table;
@@ -105,9 +106,11 @@ impl ToMd for RdapResponse {
             RdapResponse::Nameserver(nameserver) => nameserver.to_md(params),
             RdapResponse::Autnum(autnum) => autnum.to_md(params),
             RdapResponse::Network(network) => network.to_md(params),
+            RdapResponse::Redaction(redaction) => redaction.to_md(params),
             RdapResponse::DomainSearchResults(results) => results.to_md(params),
             RdapResponse::EntitySearchResults(results) => results.to_md(params),
             RdapResponse::NameserverSearchResults(results) => results.to_md(params),
+            RdapResponse::RedactionResults(results) => results.to_md(params),
             RdapResponse::ErrorResponse(error) => error.to_md(params),
             RdapResponse::Help(help) => help.to_md(params),
         };

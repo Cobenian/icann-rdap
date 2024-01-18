@@ -14,7 +14,7 @@ use self::{
     help::Help,
     nameserver::Nameserver,
     network::Network,
-    // redaction::Redaction, -- soon
+    redaction::{Redaction, RedactionResults},
     search::{DomainSearchResults, EntitySearchResults, NameserverSearchResults},
     types::{Link, Links, RdapConformance},
 };
@@ -90,11 +90,15 @@ pub enum RdapResponse {
     Nameserver(Nameserver),
     Autnum(Autnum),
     Network(Network),
+    Redaction(Redaction),
 
     // Search Results
     DomainSearchResults(DomainSearchResults),
     EntitySearchResults(EntitySearchResults),
     NameserverSearchResults(NameserverSearchResults),
+
+    // Redaction
+    RedactionResults(RedactionResults),
 
     // Error
     ErrorResponse(Error),
@@ -124,6 +128,7 @@ impl TryFrom<Value> for RdapResponse {
                     "nameserver" => Ok(RdapResponse::Nameserver(serde_json::from_value(value)?)),
                     "autnum" => Ok(RdapResponse::Autnum(serde_json::from_value(value)?)),
                     "ip network" => Ok(RdapResponse::Network(serde_json::from_value(value)?)),
+                    "redaction" => Ok(RdapResponse::Redaction(serde_json::from_value(value)?)),
                     _ => Err(RdapResponseError::UnknownRdapResponse),
                 };
             } else {
@@ -170,6 +175,19 @@ impl TryFrom<Value> for RdapResponse {
             }
         }
 
+        // else if it is a redaction result
+        if let Some(result) = response.get("redaction") {
+            if result.is_array() {
+                return Ok(RdapResponse::RedactionResults(serde_json::from_value(
+                    value,
+                )?));
+            } else {
+                return Err(RdapResponseError::WrongJsonType(
+                    "redaction' is not an array".to_string(),
+                ));
+            }
+        }
+
         // else if it has an errorCode
         if let Some(result) = response.get("errorCode") {
             if result.is_u64() {
@@ -203,9 +221,11 @@ impl RdapResponse {
             RdapResponse::Nameserver(_) => TypeId::of::<Nameserver>(),
             RdapResponse::Autnum(_) => TypeId::of::<Autnum>(),
             RdapResponse::Network(_) => TypeId::of::<Network>(),
+            RdapResponse::Redaction(_) => TypeId::of::<Redaction>(),
             RdapResponse::DomainSearchResults(_) => TypeId::of::<DomainSearchResults>(),
             RdapResponse::EntitySearchResults(_) => TypeId::of::<EntitySearchResults>(),
             RdapResponse::NameserverSearchResults(_) => TypeId::of::<NameserverSearchResults>(),
+            RdapResponse::RedactionResults(_) => TypeId::of::<RedactionResults>(),
             RdapResponse::ErrorResponse(_) => TypeId::of::<crate::response::Error>(),
             RdapResponse::Help(_) => TypeId::of::<Help>(),
         }
@@ -218,9 +238,11 @@ impl RdapResponse {
             RdapResponse::Nameserver(n) => n.object_common.links.as_ref(),
             RdapResponse::Autnum(a) => a.object_common.links.as_ref(),
             RdapResponse::Network(n) => n.object_common.links.as_ref(),
+            RdapResponse::Redaction(_) => None,
             RdapResponse::DomainSearchResults(_) => None,
             RdapResponse::EntitySearchResults(_) => None,
             RdapResponse::NameserverSearchResults(_) => None,
+            RdapResponse::RedactionResults(_) => None,
             RdapResponse::ErrorResponse(_) => None,
             RdapResponse::Help(_) => None,
         }
@@ -233,9 +255,11 @@ impl RdapResponse {
             RdapResponse::Nameserver(n) => n.common.rdap_conformance.as_ref(),
             RdapResponse::Autnum(a) => a.common.rdap_conformance.as_ref(),
             RdapResponse::Network(n) => n.common.rdap_conformance.as_ref(),
+            RdapResponse::Redaction(r) => r.common.rdap_conformance.as_ref(),
             RdapResponse::DomainSearchResults(s) => s.common.rdap_conformance.as_ref(),
             RdapResponse::EntitySearchResults(s) => s.common.rdap_conformance.as_ref(),
             RdapResponse::NameserverSearchResults(s) => s.common.rdap_conformance.as_ref(),
+            RdapResponse::RedactionResults(_) => None,
             RdapResponse::ErrorResponse(e) => e.common.rdap_conformance.as_ref(),
             RdapResponse::Help(h) => h.common.rdap_conformance.as_ref(),
         }
@@ -282,6 +306,36 @@ mod tests {
     use serde_json::Value;
 
     use super::RdapResponse;
+
+    #[test]
+    fn GIVEN_redaction_response_when_try_from_THEN_response_is_lookup_with_redaction() {
+        // GIVEN
+        let expected: Value =
+            serde_json::from_str(include_str!("test_files/lookup_with_redaction.json")).unwrap();
+
+        // WHEN
+        let actual = RdapResponse::try_from(expected).unwrap();
+
+        // THEN
+        // XXX how do we check that this is a domain search result with redaction?
+        assert!(matches!(actual, RdapResponse::Domain(_)));
+    }
+
+    #[test]
+    fn GIVEN_redaction_response_when_try_from_THEN_response_is_domain_search_results_with_redaction(
+    ) {
+        // GIVEN
+        let expected: Value =
+            serde_json::from_str(include_str!("test_files/domain_search_with_redaction.json"))
+                .unwrap();
+
+        // WHEN
+        let actual = RdapResponse::try_from(expected).unwrap();
+
+        // THEN
+        // XXX how do we check that this is a domain search result with redaction?
+        assert!(matches!(actual, RdapResponse::DomainSearchResults(_)));
+    }
 
     #[test]
     fn GIVEN_domain_response_WHEN_try_from_THEN_response_is_domain() {
