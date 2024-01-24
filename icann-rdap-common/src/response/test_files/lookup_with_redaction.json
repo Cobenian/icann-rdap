@@ -365,7 +365,6 @@
         "description": "Technical Fax"
       },
       "prePath": "$.entities[?(@.roles[0]=='technical')].vcardArray[1][?(@[1].type=='fax')]",
-      "method": "removal",
       "reason": {
         "description": "Client request"
       }

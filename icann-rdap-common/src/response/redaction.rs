@@ -72,11 +72,9 @@ pub struct Redaction {
     #[serde[rename = "replacementPath"]]
     pub replacement_path: Option<String>,
 
-    // according to the draft if it's not provided, by default it's "removal"
-    // XXX the Draft has an example where it's not provided, but it's not clear if that's a mistake
-    // Do we auto-build one if that's the case?
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "method")]
-    pub method: Method,
+    pub method: Option<Method>,
 }
 
 impl Default for Name {
@@ -113,7 +111,7 @@ impl Redaction {
             post_path: None,
             path_lang: None,
             replacement_path: None,
-            method: Method::default(),
+            method: Some(Method::default()),
             common: Common::builder().build(), // we have to have this appease the compiler, but I'm not sure we want it
                                                // common: Common::level0_with_options().extension("redacted").build(),
         }
@@ -167,7 +165,7 @@ mod tests {
             "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='contact-uri')]"
                 .to_string(),
         );
-        redaction.method = Method::Removal;
+        redaction.method = Some(Method::Removal);
 
         // THEN
         assert_eq!(
@@ -187,7 +185,7 @@ mod tests {
                     .to_string()
             )
         );
-        assert_eq!(redaction.method, Method::Removal);
+        assert_eq!(redaction.method, Some(Method::Removal));
     }
 
     #[test]
@@ -230,7 +228,7 @@ mod tests {
             "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='contact-uri')]"
                 .to_string(),
         );
-        sample_redact.method = Method::Removal;
+        sample_redact.method = Some(Method::Removal);
         sample_redact.reason = Some(reason);
 
         let actual: Result<Redaction, serde_json::Error> =
@@ -256,6 +254,6 @@ mod tests {
                     .to_string()
             )
         );
-        assert_eq!(actual.method, Method::Removal);
+        assert_eq!(actual.method, Some(Method::Removal));
     }
 }
