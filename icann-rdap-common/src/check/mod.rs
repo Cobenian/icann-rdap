@@ -99,7 +99,7 @@ impl GetChecks for RdapResponse {
             RdapResponse::Nameserver(n) => n.get_checks(params),
             RdapResponse::Autnum(a) => a.get_checks(params),
             RdapResponse::Network(n) => n.get_checks(params),
-            RdapResponse::Redaction(_) => Checks {
+            RdapResponse::Redacted(_) => Checks {
                 // XXX: This is a hack to get around the fact that Redaction doesn't implement GetChecks
                 struct_name: "",
                 items: vec![],
@@ -108,7 +108,7 @@ impl GetChecks for RdapResponse {
             RdapResponse::DomainSearchResults(r) => r.get_checks(params),
             RdapResponse::EntitySearchResults(r) => r.get_checks(params),
             RdapResponse::NameserverSearchResults(r) => r.get_checks(params),
-            RdapResponse::RedactionResults(_) => Checks {
+            RdapResponse::RedactedResults(_) => Checks {
                 // XXX: This is a hack to get around the fact that Redaction doesn't implement GetChecks
                 struct_name: "",
                 items: vec![],

@@ -2,7 +2,7 @@ use buildstructor::Builder;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    nameserver::Nameserver, network::Network, redaction::Redaction, types::{to_option_status, Common, Events, Link, Links, ObjectCommon, PublicIds}, GetSelfLink, SelfLink, ToChild
+    nameserver::Nameserver, network::Network, redacted::{self, Redacted}, types::{to_option_status, Common, Events, Link, Links, ObjectCommon, PublicIds}, GetSelfLink, SelfLink, ToChild
 };
 
 /// Represents an RDAP variant name.
@@ -134,9 +134,9 @@ pub struct Domain {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network: Option<Network>,
 
-    // #[serde(rename = "redacted")]
+    #[serde(rename = "redacted")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub redaction: Option<Redaction>,
+    pub redacted: Option<Vec<Redacted>>,
 }
 
 #[buildstructor::buildstructor]
@@ -165,14 +165,14 @@ impl Domain {
         port_43: Option<crate::response::types::Port43>,
         entities: Vec<crate::response::entity::Entity>,
         notices: Vec<crate::response::types::Notice>,
-        redactions: Vec<crate::response::redaction::Redaction>,
+        redacted: Option<Vec<crate::response::redacted::Redacted>>,
     ) -> Self {
         let entities = (!entities.is_empty()).then_some(entities);
         let remarks = (!remarks.is_empty()).then_some(remarks);
         let links = (!links.is_empty()).then_some(links);
         let events = (!events.is_empty()).then_some(events);
         let notices = (!notices.is_empty()).then_some(notices);
-        let redactions = (!redactions.is_empty()).then_some(redactions);
+        // let redacted = (!redacted.is_empty()).then_some(redacted);
         Self {
             common: Common::builder().and_notices(notices).build(),
             object_common: ObjectCommon::domain()
@@ -183,6 +183,7 @@ impl Domain {
                 .and_status(to_option_status(statuses))
                 .and_port_43(port_43)
                 .and_entities(entities)
+                .and_redacted(redacted)
                 .build(),
             ldh_name: Some(ldh_name.into()),
             unicode_name: None,
@@ -191,7 +192,8 @@ impl Domain {
             nameservers,
             public_ids: None,
             network: None,
-            redaction: None,
+            redacted: None,
+            // redacted: Some(redacted::Redacted::new()), // why do we have to have this here?
         }
     }
 }

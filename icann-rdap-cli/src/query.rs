@@ -236,21 +236,21 @@ fn do_output<'a, W: std::io::Write>(
         root: &response.rdap,
         parent_type: response.rdap.get_type(),
     });
-    println!("I WANT TO CHECK FOR REDACTION HERE!!!??");
+    // println!("I WANT TO CHECK FOR REDACTION HERE!!!??");
     // dump to string the full rdap object
-    let rdap_string = serde_json::to_string(&response.rdap).unwrap();
+    let _rdap_string = serde_json::to_string(&response.rdap).unwrap();
     // find the redaction in the respponse.rdap object and print just that out.
     // Access the redaction struct
     // let redaction = &response.rdap.redaction;
     // let rdap_response = response.rdap;
     // let rdap_response = &rdap_response;
     // let response: RdapResponse = rdap_response  // get the response somehow
-    if let Some(redaction) = response.rdap.get_redactioo_if_exists() {
+    if let Some(redaction) = response.rdap.get_redaction_if_exists() {
         // Now you can use redaction as a &Redaction
-        println!("!!!! -->  {:?}", redaction);
+        // println!("!!!! -->  {:?}", redaction);
     } else {
         // Handle the case where there is no Redaction
-        println!("XXXX No redaction found");
+        // println!("XXXX No redaction found");
     }
     // Print the redaction struct
     // println!("{:#?}", redaction);   

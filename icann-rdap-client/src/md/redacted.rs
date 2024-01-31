@@ -4,7 +4,7 @@ use std::any::TypeId;
 
 use icann_rdap_common::{
     check::{CheckParams, GetSubChecks},
-    response::redaction::{Redaction, RedactionResults},
+    response::redacted::{Redacted, RedactedResults},
 };
 
 // use super::types::{events_to_table, links_to_table, public_ids_to_table};
@@ -41,18 +41,18 @@ use super::{
 use tracing::debug;
 
 // XXX todo implement this
-impl ToMd for Redaction {
+impl ToMd for Redacted {
     // fn to_md(&self, _params: MdParams) -> String {
     //     String::new()
     // }
     fn to_md(&self, params: MdParams) -> String {
-        debug!("Redaction::to_md");
-        let typeid = TypeId::of::<Redaction>();
+        debug!("Redacted::to_md");
+        let typeid = TypeId::of::<Redacted>();
         let mut md = String::new();
         md.push_str(&self.common.to_md(params.from_parent(typeid)));
 
         // header
-        let header_text = "Redaction".to_string();
+        let header_text = "Redacted".to_string();
 
         md.push_str(&header_text.to_header(params.heading_level, params.options));
 
@@ -126,7 +126,7 @@ impl ToMd for Redaction {
 }
 
 // XXX todo implement this
-impl ToMd for RedactionResults {
+impl ToMd for RedactedResults {
     fn to_md(&self, _params: MdParams) -> String {
         String::new()
     }

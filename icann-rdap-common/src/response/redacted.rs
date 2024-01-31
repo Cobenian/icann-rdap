@@ -44,7 +44,7 @@ pub enum Method {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct Redaction {
+pub struct Redacted {
     #[serde(flatten)]
     pub common: Common,
 
@@ -102,7 +102,7 @@ impl Default for Method {
     }
 }
 
-impl Redaction {
+impl Redacted {
     pub fn new() -> Self {
         Self {
             name: Name::default(),
@@ -127,16 +127,16 @@ impl Redaction {
 
 /// Represents RDAP nameserver search results.
 #[derive(Serialize, Deserialize, Builder, Clone, PartialEq, Debug, Eq)]
-pub struct RedactionResults {
+pub struct RedactedResults {
     #[serde(flatten)]
     pub common: Common,
 
     #[serde(rename = "redacted")]
-    pub results: Vec<Redaction>,
+    pub results: Vec<Redacted>,
 }
 
 #[buildstructor::buildstructor]
-impl RedactionResults {
+impl RedactedResults {
     #[builder(entry = "basic")]
     pub fn new_empty() -> Self {
         Self {
@@ -156,43 +156,43 @@ mod tests {
         // this is a just to test that I set up the structures correctly
         // Should you change them, this will fail
         // GIVEN
-        let mut name = Redaction::new();
+        let mut name = Redacted::new();
         name.name = Name {
             description: Some("Registry Domain ID".to_string()),
             type_: None,
         };
 
         // WHEN
-        let mut redaction = name;
-        redaction.reason = Some(Reason::default());
-        redaction.pre_path = Some("$.handle".to_string());
-        redaction.post_path = Some("$.entities[?(@.roles[0]=='registrant".to_string());
-        redaction.path_lang = Some("jsonpath".to_string());
-        redaction.replacement_path = Some(
+        let mut redacted = name;
+        redacted.reason = Some(Reason::default());
+        redacted.pre_path = Some("$.handle".to_string());
+        redacted.post_path = Some("$.entities[?(@.roles[0]=='registrant".to_string());
+        redacted.path_lang = Some("jsonpath".to_string());
+        redacted.replacement_path = Some(
             "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='contact-uri')]"
                 .to_string(),
         );
-        redaction.method = Some(Method::Removal);
+        redacted.method = Some(Method::Removal);
 
         // THEN
         assert_eq!(
-            redaction.name.description,
+            redacted.name.description,
             Some("Registry Domain ID".to_string())
         );
-        assert_eq!(redaction.pre_path, Some("$.handle".to_string()));
+        assert_eq!(redacted.pre_path, Some("$.handle".to_string()));
         assert_eq!(
-            redaction.post_path,
+            redacted.post_path,
             Some("$.entities[?(@.roles[0]=='registrant".to_string())
         );
-        assert_eq!(redaction.path_lang, Some("jsonpath".to_string()));
+        assert_eq!(redacted.path_lang, Some("jsonpath".to_string()));
         assert_eq!(
-            redaction.replacement_path,
+            redacted.replacement_path,
             Some(
                 "$.entities[?(@.roles[0]=='registrant')].vcardArray[1][?(@[0]=='contact-uri')]"
                     .to_string()
             )
         );
-        assert_eq!(redaction.method, Some(Method::Removal));
+        assert_eq!(redacted.method, Some(Method::Removal));
     }
 
     #[test]
@@ -215,7 +215,7 @@ mod tests {
         }
         "#;
 
-        let mut name = Redaction::new();
+        let mut name: Redacted = Redacted::new();
         name.name = Name {
             description: Some("Registry Domain ID".to_string()),
             type_: None,
@@ -227,7 +227,7 @@ mod tests {
         };
 
         // WHEN
-        let mut sample_redact = name;
+        let mut sample_redact: Redacted = name;
         sample_redact.pre_path = Some("$.handle".to_string());
         sample_redact.path_lang = Some("jsonpath".to_string());
         sample_redact.post_path = Some("$.entities[?(@.roles[0]=='registrant".to_string());
@@ -238,11 +238,11 @@ mod tests {
         sample_redact.method = Some(Method::Removal);
         sample_redact.reason = Some(reason);
 
-        let actual: Result<Redaction, serde_json::Error> =
-            serde_json::from_str::<Redaction>(expected);
+        let actual: Result<Redacted, serde_json::Error> =
+            serde_json::from_str::<Redacted>(expected);
 
         // THEN
-        let actual = actual.unwrap();
+        let actual: Redacted = actual.unwrap();
         assert_eq!(actual, sample_redact); // sanity check
         assert_eq!(
             actual.name.description,
