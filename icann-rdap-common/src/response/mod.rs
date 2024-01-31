@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::{any::TypeId, fs::read};
 
 use cidr_utils::cidr;
 use serde::{Deserialize, Serialize};
@@ -111,6 +111,7 @@ impl TryFrom<Value> for RdapResponse {
     type Error = RdapResponseError;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
+        // println!("HEY ALLL LETS TO PRINT OUT SOME STUFF");
         let response = if let Some(object) = value.as_object() {
             object
         } else {
@@ -121,6 +122,7 @@ impl TryFrom<Value> for RdapResponse {
 
         // if it has an objectClassName
         if let Some(class_name) = response.get("objectClassName") {
+            // println!("Its a something , print it out");
             if let Some(name_str) = class_name.as_str() {
                 return match name_str {
                     "domain" => Ok(RdapResponse::Domain(serde_json::from_value(value)?)),
@@ -152,6 +154,7 @@ impl TryFrom<Value> for RdapResponse {
         }
         // else if it is a entity search result
         if let Some(result) = response.get("entitySearchResults") {
+            println!("HEY WE HAZ A ENTITY result: {:?}", result);
             if result.is_array() {
                 return Ok(RdapResponse::EntitySearchResults(serde_json::from_value(
                     value,
@@ -175,8 +178,11 @@ impl TryFrom<Value> for RdapResponse {
             }
         }
 
+        // This is not a thing
         // else if it is a redaction result
+        //
         if let Some(result) = response.get("redaction") {
+            // println!("HEY WE HAZ A REDACTION result: {:?}", result);
             if result.is_array() {
                 return Ok(RdapResponse::RedactionResults(serde_json::from_value(
                     value,
@@ -214,6 +220,44 @@ impl TryFrom<Value> for RdapResponse {
 }
 
 impl RdapResponse {
+    pub fn get_redactioo_if_exists(&self) -> Option<&redaction::Redaction> {
+        println!("HEY ALLL LETS TO PRINT OUT SOME STUFF");
+        match self {
+            RdapResponse::Redaction(r) => Some(r),
+            RdapResponse::Entity(e) => {
+                println!("HEY WE HAZ A ENTITY result: {:?}", e);
+                None
+            },
+            RdapResponse::Domain(d) => {
+                println!("inside Domain grabbing the redaction: : {:?}", d.redaction.as_ref()); 
+                return d.redaction.as_ref();
+                // let redaction = d.common.redacted.as_ref();
+                // let redaction = d.common.redaction.as_ref();
+                // inside the domain result pull out the redaction
+                // let flatten = d.common.iter().find_map(|n| {
+                //     match n {
+                //         crate::response::types::Notice::Redaction(redaction) => Some(redaction),
+                //         _ => None,
+                //     }
+                // });
+                // None
+            },
+            RdapResponse::RedactionResults(s) => {
+                println!("HEY WE HAZ A REDACTION result: {:?}", s);
+
+            //     let flatten = s.results.iter().find_map(|r| {
+            //         match r {
+            //            Redaction(redaction) => Some(redaction),
+            //             _ => None,
+            //         }
+            //     });
+            //     flatten
+                None
+            },
+            _ => None,
+        }
+    }
+
     pub fn get_type(&self) -> TypeId {
         match self {
             RdapResponse::Entity(_) => TypeId::of::<Entity>(),
@@ -259,7 +303,7 @@ impl RdapResponse {
             RdapResponse::DomainSearchResults(s) => s.common.rdap_conformance.as_ref(),
             RdapResponse::EntitySearchResults(s) => s.common.rdap_conformance.as_ref(),
             RdapResponse::NameserverSearchResults(s) => s.common.rdap_conformance.as_ref(),
-            RdapResponse::RedactionResults(_) => None,
+            RdapResponse::RedactionResults(s) => s.common.rdap_conformance.as_ref(),
             RdapResponse::ErrorResponse(e) => e.common.rdap_conformance.as_ref(),
             RdapResponse::Help(h) => h.common.rdap_conformance.as_ref(),
         }

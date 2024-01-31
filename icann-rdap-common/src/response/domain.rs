@@ -2,10 +2,7 @@ use buildstructor::Builder;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    nameserver::Nameserver,
-    network::Network,
-    types::{to_option_status, Common, Events, Link, Links, ObjectCommon, PublicIds},
-    GetSelfLink, SelfLink, ToChild,
+    nameserver::Nameserver, network::Network, redaction::Redaction, types::{to_option_status, Common, Events, Link, Links, ObjectCommon, PublicIds}, GetSelfLink, SelfLink, ToChild
 };
 
 /// Represents an RDAP variant name.
@@ -136,6 +133,10 @@ pub struct Domain {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network: Option<Network>,
+
+    // #[serde(rename = "redacted")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redaction: Option<Redaction>,
 }
 
 #[buildstructor::buildstructor]
@@ -164,12 +165,14 @@ impl Domain {
         port_43: Option<crate::response::types::Port43>,
         entities: Vec<crate::response::entity::Entity>,
         notices: Vec<crate::response::types::Notice>,
+        redactions: Vec<crate::response::redaction::Redaction>,
     ) -> Self {
         let entities = (!entities.is_empty()).then_some(entities);
         let remarks = (!remarks.is_empty()).then_some(remarks);
         let links = (!links.is_empty()).then_some(links);
         let events = (!events.is_empty()).then_some(events);
         let notices = (!notices.is_empty()).then_some(notices);
+        let redactions = (!redactions.is_empty()).then_some(redactions);
         Self {
             common: Common::builder().and_notices(notices).build(),
             object_common: ObjectCommon::domain()
@@ -188,6 +191,7 @@ impl Domain {
             nameservers,
             public_ids: None,
             network: None,
+            redaction: None,
         }
     }
 }

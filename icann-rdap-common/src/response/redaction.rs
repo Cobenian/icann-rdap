@@ -116,6 +116,13 @@ impl Redaction {
                                                // common: Common::level0_with_options().extension("redacted").build(),
         }
     }
+
+    pub fn get_checks(
+        &self,
+        _check_params: crate::check::CheckParams<'_>,
+    ) -> crate::check::Checks<'_> {
+        todo!()
+    }
 }
 
 /// Represents RDAP nameserver search results.
@@ -124,7 +131,7 @@ pub struct RedactionResults {
     #[serde(flatten)]
     pub common: Common,
 
-    #[serde(rename = "redaction")]
+    #[serde(rename = "redacted")]
     pub results: Vec<Redaction>,
 }
 
