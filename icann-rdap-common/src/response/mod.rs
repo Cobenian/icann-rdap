@@ -222,7 +222,7 @@ impl RdapResponse {
         // println!("HEY ALLL LETS TO PRINT OUT SOME STUFF");
         match self {
             RdapResponse::Redacted(r) => Some(r),
-            RdapResponse::Entity(e) => {
+            RdapResponse::Entity(_e) => {
                 // println!("HEY WE HAZ A ENTITY result: {:?}", e);
                 None
             }
@@ -240,7 +240,7 @@ impl RdapResponse {
                 // });
                 // None
             }
-            RdapResponse::RedactedResults(s) => {
+            RdapResponse::RedactedResults(_s) => {
                 // println!("HEY WE HAZ A REDACTION result: {:?}", s);
 
                 //     let flatten = s.results.iter().find_map(|r| {
