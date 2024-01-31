@@ -14,7 +14,7 @@ use self::{
     help::Help,
     nameserver::Nameserver,
     network::Network,
-    redacted::{Redacted, RedactedResults},
+    redacted::Redacted,
     search::{DomainSearchResults, EntitySearchResults, NameserverSearchResults},
     types::{Link, Links, RdapConformance},
 };
@@ -97,9 +97,6 @@ pub enum RdapResponse {
     EntitySearchResults(EntitySearchResults),
     NameserverSearchResults(NameserverSearchResults),
 
-    // Redaction
-    RedactedResults(RedactedResults),
-
     // Error
     ErrorResponse(Error),
 
@@ -130,7 +127,6 @@ impl TryFrom<Value> for RdapResponse {
                     "nameserver" => Ok(RdapResponse::Nameserver(serde_json::from_value(value)?)),
                     "autnum" => Ok(RdapResponse::Autnum(serde_json::from_value(value)?)),
                     "ip network" => Ok(RdapResponse::Network(serde_json::from_value(value)?)),
-                    "redacted" => Ok(RdapResponse::Redacted(serde_json::from_value(value)?)), // it should be never at this level
                     _ => Err(RdapResponseError::UnknownRdapResponse),
                 };
             } else {
@@ -182,9 +178,7 @@ impl TryFrom<Value> for RdapResponse {
         if let Some(result) = response.get("redacted") {
             // println!("HEY WE HAZ A REDACTION result: {:?}", result);
             if result.is_array() {
-                return Ok(RdapResponse::RedactedResults(serde_json::from_value(
-                    value,
-                )?));
+                return Ok(RdapResponse::Redacted(serde_json::from_value(value)?));
             } else {
                 return Err(RdapResponseError::WrongJsonType(
                     "redacted' is not an array".to_string(),
@@ -221,14 +215,13 @@ impl RdapResponse {
     pub fn get_redaction_if_exists(&self) -> Option<&redacted::Redacted> {
         // println!("HEY ALLL LETS TO PRINT OUT SOME STUFF");
         match self {
-            RdapResponse::Redacted(r) => Some(r),
             RdapResponse::Entity(_e) => {
                 // println!("HEY WE HAZ A ENTITY result: {:?}", e);
                 None
             }
             RdapResponse::Domain(d) => {
                 // println!("inside Domain grabbing the redaction: : {:?}", d.redacted.as_ref());
-                return d.redacted.as_ref().map(|v| &v[0]);
+                return d.common.redacted.as_ref().map(|v| &v[0]);
                 // let redaction = d.common.redacted.as_ref();
                 // let redaction = d.common.redaction.as_ref();
                 // inside the domain result pull out the redaction
@@ -239,18 +232,6 @@ impl RdapResponse {
                 //     }
                 // });
                 // None
-            }
-            RdapResponse::RedactedResults(_s) => {
-                // println!("HEY WE HAZ A REDACTION result: {:?}", s);
-
-                //     let flatten = s.results.iter().find_map(|r| {
-                //         match r {
-                //            Redaction(redaction) => Some(redaction),
-                //             _ => None,
-                //         }
-                //     });
-                //     flatten
-                None
             }
             _ => None,
         }
@@ -267,7 +248,6 @@ impl RdapResponse {
             RdapResponse::DomainSearchResults(_) => TypeId::of::<DomainSearchResults>(),
             RdapResponse::EntitySearchResults(_) => TypeId::of::<EntitySearchResults>(),
             RdapResponse::NameserverSearchResults(_) => TypeId::of::<NameserverSearchResults>(),
-            RdapResponse::RedactedResults(_) => TypeId::of::<RedactedResults>(),
             RdapResponse::ErrorResponse(_) => TypeId::of::<crate::response::Error>(),
             RdapResponse::Help(_) => TypeId::of::<Help>(),
         }
@@ -284,7 +264,7 @@ impl RdapResponse {
             RdapResponse::DomainSearchResults(_) => None,
             RdapResponse::EntitySearchResults(_) => None,
             RdapResponse::NameserverSearchResults(_) => None,
-            RdapResponse::RedactedResults(_) => None,
+
             RdapResponse::ErrorResponse(_) => None,
             RdapResponse::Help(_) => None,
         }
@@ -301,7 +281,6 @@ impl RdapResponse {
             RdapResponse::DomainSearchResults(s) => s.common.rdap_conformance.as_ref(),
             RdapResponse::EntitySearchResults(s) => s.common.rdap_conformance.as_ref(),
             RdapResponse::NameserverSearchResults(s) => s.common.rdap_conformance.as_ref(),
-            RdapResponse::RedactedResults(s) => s.common.rdap_conformance.as_ref(),
             RdapResponse::ErrorResponse(e) => e.common.rdap_conformance.as_ref(),
             RdapResponse::Help(h) => h.common.rdap_conformance.as_ref(),
         }

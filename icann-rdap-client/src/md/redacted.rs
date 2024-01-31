@@ -4,7 +4,7 @@ use std::any::TypeId;
 
 use icann_rdap_common::{
     check::{CheckParams, GetSubChecks},
-    response::redacted::{Redacted, RedactedResults},
+    response::redacted::Redacted,
 };
 
 // use super::types::{events_to_table, links_to_table, public_ids_to_table};
@@ -122,12 +122,5 @@ impl ToMd for Redacted {
 
         md.push('\n');
         md
-    }
-}
-
-// XXX todo implement this
-impl ToMd for RedactedResults {
-    fn to_md(&self, _params: MdParams) -> String {
-        String::new()
     }
 }

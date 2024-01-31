@@ -108,12 +108,6 @@ impl GetChecks for RdapResponse {
             RdapResponse::DomainSearchResults(r) => r.get_checks(params),
             RdapResponse::EntitySearchResults(r) => r.get_checks(params),
             RdapResponse::NameserverSearchResults(r) => r.get_checks(params),
-            RdapResponse::RedactedResults(_) => Checks {
-                // XXX: This is a hack to get around the fact that Redaction doesn't implement GetChecks
-                struct_name: "",
-                items: vec![],
-                sub_checks: vec![],
-            },
             RdapResponse::ErrorResponse(e) => e.get_checks(params),
             RdapResponse::Help(h) => h.get_checks(params),
         }

@@ -112,7 +112,7 @@ impl Redacted {
             path_lang: None,
             replacement_path: None,
             method: Some(Method::default()),
-            common: Common::builder().build(), // we have to have this appease the compiler, but I'm not sure we want it
+            common: Common::builder().build(), // we have to have this appease the compiler but we ARE common now?? wtf?
                                                // common: Common::level0_with_options().extension("redacted").build(),
         }
     }

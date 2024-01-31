@@ -110,7 +110,6 @@ impl ToMd for RdapResponse {
             RdapResponse::DomainSearchResults(results) => results.to_md(params),
             RdapResponse::EntitySearchResults(results) => results.to_md(params),
             RdapResponse::NameserverSearchResults(results) => results.to_md(params),
-            RdapResponse::RedactedResults(results) => results.to_md(params),
             RdapResponse::ErrorResponse(error) => error.to_md(params),
             RdapResponse::Help(help) => help.to_md(params),
         };
