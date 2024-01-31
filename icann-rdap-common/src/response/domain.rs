@@ -2,7 +2,11 @@ use buildstructor::Builder;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    nameserver::Nameserver, network::Network, redacted::{self, Redacted}, types::{to_option_status, Common, Events, Link, Links, ObjectCommon, PublicIds}, GetSelfLink, SelfLink, ToChild
+    nameserver::Nameserver,
+    network::Network,
+    redacted::Redacted,
+    types::{to_option_status, Common, Events, Link, Links, ObjectCommon, PublicIds},
+    GetSelfLink, SelfLink, ToChild,
 };
 
 /// Represents an RDAP variant name.

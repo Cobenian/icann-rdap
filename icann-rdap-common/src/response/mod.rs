@@ -1,7 +1,4 @@
-use std::{
-    any::TypeId, 
-    // fs::read
-};
+use std::any::TypeId;
 
 use cidr_utils::cidr;
 use serde::{Deserialize, Serialize};
@@ -180,7 +177,7 @@ impl TryFrom<Value> for RdapResponse {
                 ));
             }
         }
-        
+
         // we should not need to be doing this
         if let Some(result) = response.get("redacted") {
             // println!("HEY WE HAZ A REDACTION result: {:?}", result);
@@ -228,9 +225,9 @@ impl RdapResponse {
             RdapResponse::Entity(e) => {
                 // println!("HEY WE HAZ A ENTITY result: {:?}", e);
                 None
-            },
+            }
             RdapResponse::Domain(d) => {
-                // println!("inside Domain grabbing the redaction: : {:?}", d.redacted.as_ref()); 
+                // println!("inside Domain grabbing the redaction: : {:?}", d.redacted.as_ref());
                 return d.redacted.as_ref().map(|v| &v[0]);
                 // let redaction = d.common.redacted.as_ref();
                 // let redaction = d.common.redaction.as_ref();
@@ -242,19 +239,19 @@ impl RdapResponse {
                 //     }
                 // });
                 // None
-            },
+            }
             RdapResponse::RedactedResults(s) => {
                 // println!("HEY WE HAZ A REDACTION result: {:?}", s);
 
-            //     let flatten = s.results.iter().find_map(|r| {
-            //         match r {
-            //            Redaction(redaction) => Some(redaction),
-            //             _ => None,
-            //         }
-            //     });
-            //     flatten
+                //     let flatten = s.results.iter().find_map(|r| {
+                //         match r {
+                //            Redaction(redaction) => Some(redaction),
+                //             _ => None,
+                //         }
+                //     });
+                //     flatten
                 None
-            },
+            }
             _ => None,
         }
     }
