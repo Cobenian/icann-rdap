@@ -2,8 +2,12 @@
 // draft-ietf-regext-rdap-redacted-16
 // I'm not saying this is correct, but let's get something down to get things started.
 
+use std::any::TypeId;
+
 use buildstructor::Builder;
 use serde::{Deserialize, Serialize};
+
+use crate::check::{items, Checks};
 
 use super::types::Common;
 
@@ -17,12 +21,24 @@ use super::types::Common;
 pub struct Name {
     #[serde(rename = "description")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
 
     #[serde(default)]
     #[serde(rename = "type")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    type_: Option<String>,
+    pub type_: Option<String>,
+}
+
+impl Name {
+    // Getter for `description`
+    pub fn description(&self) -> Option<&String> {
+        self.description.as_ref()
+    }
+
+    // Getter for `type_`
+    pub fn type_(&self) -> Option<&String> {
+        self.type_.as_ref()
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -121,7 +137,15 @@ impl Redacted {
         &self,
         _check_params: crate::check::CheckParams<'_>,
     ) -> crate::check::Checks<'_> {
-        todo!()
+        Checks {
+            struct_name: "RDAP Conformance",
+            items: Vec::new(),
+            sub_checks: Vec::new(),
+        }
+    }
+
+    pub fn get_type(&self) -> std::any::TypeId {
+        TypeId::of::<Redacted>()
     }
 }
 
