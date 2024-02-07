@@ -42,9 +42,6 @@ use tracing::debug;
 
 // XXX todo implement this
 impl ToMd for Redacted {
-    // fn to_md(&self, _params: MdParams) -> String {
-    //     String::new()
-    // }
     fn to_md(&self, params: MdParams) -> String {
         debug!("Redacted::to_md");
         let typeid = TypeId::of::<Redacted>();
@@ -62,6 +59,7 @@ impl ToMd for Redacted {
         // identifiers
         table = table
             .header_ref(&"reason")
+            .and_data_ref(&"name", &self.name.description)
             .and_data_ref(&"prePath", &self.pre_path)
             .and_data_ref(&"postPath", &self.post_path)
             .and_data_ref(&"pathLang", &self.path_lang)
