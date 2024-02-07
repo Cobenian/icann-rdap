@@ -1,17 +1,12 @@
 use std::any::TypeId;
 
+use crate::md::{types::checks_to_table, FromMd};
 use icann_rdap_common::{
     check::{CheckParams, GetSubChecks},
     response::redacted::Redacted,
 };
-use crate::md::{types::checks_to_table, FromMd};
 
-use super::{
-    string::StringUtil,
-    table::MultiPartTable,
-    MdParams,
-    ToMd,
-};
+use super::{string::StringUtil, table::MultiPartTable, MdParams, ToMd};
 
 impl ToMd for Redacted {
     fn to_md(&self, params: MdParams) -> String {

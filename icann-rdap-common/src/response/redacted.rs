@@ -54,9 +54,10 @@ pub struct Reason {
 
 impl std::fmt::Display for Reason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let output = self.description.clone().unwrap_or_else(|| {
-            self.type_field.clone().unwrap_or_else(|| "".to_string())
-        });
+        let output = self
+            .description
+            .clone()
+            .unwrap_or_else(|| self.type_field.clone().unwrap_or_else(|| "".to_string()));
         write!(f, "{}", output)
     }
 }
