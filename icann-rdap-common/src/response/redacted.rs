@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::check::{items, Checks};
 
+use std::fmt;
+
 use super::types::Common;
 
 // Probably going need these soon!
@@ -48,6 +50,15 @@ pub struct Reason {
 
     #[serde(rename = "type")]
     pub type_field: Option<String>,
+}
+
+impl std::fmt::Display for Reason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let output = self.description.clone().unwrap_or_else(|| {
+            self.type_field.clone().unwrap_or_else(|| "".to_string())
+        });
+        write!(f, "{}", output)
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -115,6 +126,18 @@ impl Default for Reason {
 impl Default for Method {
     fn default() -> Self {
         Self::Removal // according to IETF draft this is the default
+    }
+}
+
+// We need this to display anything for Method
+impl fmt::Display for Method {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Method::Removal => write!(f, "Removal"),
+            Method::EmptyValue => write!(f, "EmptyValue"),
+            Method::PartialValue => write!(f, "PartialValue"),
+            Method::ReplacementValue => write!(f, "ReplacementValue"),
+        }
     }
 }
 
