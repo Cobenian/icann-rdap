@@ -247,7 +247,7 @@ fn do_output<'a, W: std::io::Write>(
     //     println!("XXXX No redaction found");
     // }
     if let Some(redaction) = response.rdap.get_redaction_if_exists() {
-            // Assuming `redacted` is an instance of `Redacted`
+        // Assuming `redacted` is an instance of `Redacted`
         // println!("!!!! -->  {:?}", redaction);
         let mut skin = MadSkin::default_dark();
         skin.set_headers_fg(Yellow);
