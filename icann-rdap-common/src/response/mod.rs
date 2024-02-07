@@ -212,26 +212,16 @@ impl TryFrom<Value> for RdapResponse {
 }
 
 impl RdapResponse {
-    pub fn get_redaction_if_exists(&self) -> Option<&redacted::Redacted> {
-        // println!("HEY ALLL LETS TO PRINT OUT SOME STUFF");
+    pub fn get_redaction_if_exists(&self) -> Option<Vec<redacted::Redacted>> {
         match self {
-            RdapResponse::Entity(_e) => {
-                // println!("HEY WE HAZ A ENTITY result: {:?}", e);
-                None
-            }
+            RdapResponse::Entity(_e) => None,
             RdapResponse::Domain(d) => {
-                // println!("inside Domain grabbing the redaction: : {:?}", d.redacted.as_ref());
-                return d.common.redacted.as_ref().map(|v| &v[0]);
-                // let redaction = d.common.redacted.as_ref();
-                // let redaction = d.common.redaction.as_ref();
-                // inside the domain result pull out the redaction
-                // let flatten = d.common.iter().find_map(|n| {
-                //     match n {
-                //         crate::response::types::Notice::Redaction(redaction) => Some(redaction),
-                //         _ => None,
-                //     }
-                // });
-                // None
+                if let Some(redactions) = d.common.redacted.as_ref() {
+                    if !redactions.is_empty() {
+                        return Some(redactions.clone());
+                    }
+                }
+                None
             }
             _ => None,
         }

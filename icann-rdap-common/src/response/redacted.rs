@@ -7,7 +7,7 @@ use std::any::TypeId;
 use buildstructor::Builder;
 use serde::{Deserialize, Serialize};
 
-use crate::check::{items, Checks};
+use crate::check::Checks;
 
 use std::fmt;
 
