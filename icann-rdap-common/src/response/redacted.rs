@@ -22,13 +22,13 @@ use super::types::Common;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Name {
     #[serde(rename = "description")]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
-    #[serde(default)]
+    // #[serde(default)]
     #[serde(rename = "type")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub type_: Option<String>,
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_field: Option<String>,
 }
 
 impl Name {
@@ -38,8 +38,8 @@ impl Name {
     }
 
     // Getter for `type_`
-    pub fn type_(&self) -> Option<&String> {
-        self.type_.as_ref()
+    pub fn type_field(&self) -> Option<&String> {
+        self.type_field.as_ref()
     }
 }
 
@@ -81,23 +81,23 @@ pub struct Redacted {
     pub name: Name,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde[rename = "reason"]]
+    #[serde(rename = "reason")]
     pub reason: Option<Reason>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde[rename = "prePath"]]
+    #[serde(rename = "prePath")]
     pub pre_path: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde[rename = "postPath"]]
+    #[serde(rename = "postPath")]
     pub post_path: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde[rename = "pathLang"]]
+    #[serde(rename = "pathLang")]
     pub path_lang: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde[rename = "replacementPath"]]
+    #[serde(rename = "replacementPath")]
     pub replacement_path: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -109,7 +109,7 @@ impl Default for Name {
     fn default() -> Self {
         Self {
             description: Some(String::default()),
-            type_: None,
+            type_field: None,
         }
     }
 }
@@ -207,7 +207,7 @@ mod tests {
         let mut name = Redacted::new();
         name.name = Name {
             description: Some("Registry Domain ID".to_string()),
-            type_: None,
+            type_field: None,
         };
 
         // WHEN
@@ -250,7 +250,7 @@ mod tests {
         let expected = r#"
         {
           "name": {
-            "description": "Registry Domain ID"
+            "type": "Registry Domain ID"
           },
           "prePath": "$.handle",
           "pathLang": "jsonpath",
@@ -265,8 +265,8 @@ mod tests {
 
         let mut name: Redacted = Redacted::new();
         name.name = Name {
-            description: Some("Registry Domain ID".to_string()),
-            type_: None,
+            type_field: Some("Registry Domain ID".to_string()),
+            description: None,
         };
 
         let reason: Reason = Reason {
@@ -293,7 +293,7 @@ mod tests {
         let actual: Redacted = actual.unwrap();
         assert_eq!(actual, sample_redact); // sanity check
         assert_eq!(
-            actual.name.description,
+            actual.name.type_field,
             Some("Registry Domain ID".to_string())
         );
         assert_eq!(actual.pre_path, Some("$.handle".to_string()));

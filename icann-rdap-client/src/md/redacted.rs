@@ -25,7 +25,14 @@ impl ToMd for Redacted {
 
         table = table
             .header_ref(&"Fields")
-            .and_data_ref(&"name", &self.name.description)
+            .and_data_ref(
+                &"name",
+                &self.name.description.as_ref().map(|s| s.clone()).or(self
+                    .name
+                    .type_field
+                    .as_ref()
+                    .map(|s| s.clone())),
+            )
             .and_data_ref(&"prePath", &self.pre_path)
             .and_data_ref(&"postPath", &self.post_path)
             .and_data_ref(&"replacementPath", &self.replacement_path)
