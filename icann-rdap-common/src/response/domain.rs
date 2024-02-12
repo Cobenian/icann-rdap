@@ -171,7 +171,6 @@ impl Domain {
         let links = (!links.is_empty()).then_some(links);
         let events = (!events.is_empty()).then_some(events);
         let notices = (!notices.is_empty()).then_some(notices);
-        // let redacted = (!redacted.is_empty()).then_some(redacted);
         Self {
             common: Common::builder()
                 .and_notices(notices)
