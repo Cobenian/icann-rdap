@@ -84,7 +84,10 @@ impl Entity {
         let events = (!events.is_empty()).then_some(events);
         let notices = (!notices.is_empty()).then_some(notices);
         Self {
-            common: Common::builder().and_notices(notices).and_redacted(redacted).build(),
+            common: Common::builder()
+                .and_notices(notices)
+                .and_redacted(redacted)
+                .build(),
             object_common: ObjectCommon::entity()
                 .handle(handle.into())
                 .and_remarks(remarks)
