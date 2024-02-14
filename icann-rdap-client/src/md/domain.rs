@@ -15,6 +15,13 @@ use super::{
     MdParams, ToMd, HR,
 };
 
+fn redact_if_empty(value: &Option<String>) -> Option<String> {
+    match value {
+        Some(s) if !s.is_empty() => Some(s.clone()),
+        _ => Some("REDACTED".to_string()),
+    }
+}
+
 impl ToMd for Domain {
     fn to_md(&self, params: MdParams) -> String {
         let typeid = TypeId::of::<Domain>();
@@ -41,13 +48,12 @@ impl ToMd for Domain {
         // identifiers
         table = table
             .header_ref(&"Identifiers")
-            .and_data_ref(&"LDH Name", &self.ldh_name)
-            .and_data_ref(&"Unicode Name", &self.unicode_name)
-            .and_data_ref(&"Handle", &self.object_common.handle);
+            .and_data_ref(&"LDH Name", &redact_if_empty(&self.ldh_name))
+            .and_data_ref(&"Unicode Name", &redact_if_empty(&self.unicode_name))
+            .and_data_ref(&"Handle", &redact_if_empty(&self.object_common.handle));
         if let Some(public_ids) = &self.public_ids {
             table = public_ids_to_table(public_ids, table);
         }
-
         // common object stuff
         table = self.object_common.add_to_mptable(table, params);
 
