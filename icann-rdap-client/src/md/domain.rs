@@ -15,6 +15,7 @@ use super::{
     MdParams, ToMd, HR,
 };
 
+// This is phase one of this ... it's utter BS, of course, but it's a start
 fn redact_if_empty(value: &Option<String>) -> Option<String> {
     match value {
         Some(s) if !s.is_empty() => Some(s.clone()),
