@@ -223,6 +223,33 @@ impl RdapResponse {
                 }
                 None
             }
+            // nameserver
+            RdapResponse::Nameserver(d) => {
+                if let Some(redactions) = d.common.redacted.as_ref() {
+                    if !redactions.is_empty() {
+                        return Some(redactions.clone());
+                    }
+                }
+                None
+            }
+            // autnum
+            RdapResponse::Autnum(d) => {
+                if let Some(redactions) = d.common.redacted.as_ref() {
+                    if !redactions.is_empty() {
+                        return Some(redactions.clone());
+                    }
+                }
+                None
+            }
+            // network
+            RdapResponse::Network(d) => {
+                if let Some(redactions) = d.common.redacted.as_ref() {
+                    if !redactions.is_empty() {
+                        return Some(redactions.clone());
+                    }
+                }
+                None
+            }
             _ => None,
         }
     }
