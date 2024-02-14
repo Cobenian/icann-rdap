@@ -21,6 +21,8 @@ impl ToMd for Domain {
         let mut md = String::new();
         md.push_str(&self.common.to_md(params.from_parent(typeid)));
 
+        // We have access to the redaction we _could_ look up the fields here
+
         // header
         let header_text = if let Some(unicode_name) = &self.unicode_name {
             format!("Domain {unicode_name}")

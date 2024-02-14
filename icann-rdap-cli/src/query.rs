@@ -191,11 +191,18 @@ fn do_output<'a, W: std::io::Write>(
             skin.headers[1].align = Alignment::Center;
             skin.headers[2].align = Alignment::Center;
             skin.headers[3].align = Alignment::Center;
+            // skin.headers[1].compound_style.set_fg(Red); // make h1 headers red
+            // skin.headers[2].compound_style.set_fg(Red); // make h2 headers red
+            // skin.headers[3].compound_style.set_fg(Red); // make h3 headers red
             skin.headers[4].compound_style.set_fg(DarkGreen);
             skin.headers[5].compound_style.set_fg(Magenta);
             skin.headers[6].compound_style.set_fg(Cyan);
             skin.headers[7].compound_style.set_fg(Red);
-            skin.bold.set_fg(DarkBlue);
+            // skin.bold.set_fg(DarkBlue);
+            // here's where we set the color for the bold text IF there is a redaction
+            // the real question ... HOW do we know if there is a redaction?
+            // and also which column are we looking at? This just sets it for the whole table
+            skin.bold.set_fg(DarkRed);
             skin.italic.set_fg(Red);
             skin.quote_mark.set_fg(DarkBlue);
             skin.table.set_fg(DarkGreen);
