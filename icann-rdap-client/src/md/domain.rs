@@ -15,6 +15,9 @@ use super::{
     MdParams, ToMd, HR,
 };
 
+use serde_json::Value;
+
+
 // This is phase one of this ... it's utter BS, of course, but it's a start
 fn redact_if_empty(value: &Option<String>) -> Option<String> {
     match value {
@@ -22,6 +25,39 @@ fn redact_if_empty(value: &Option<String>) -> Option<String> {
         _ => Some("REDACTED".to_string()),
     }
 }
+
+// this is phase two, we need to find the jsonPath to a key in the structure
+fn get_json_path(json: &Value, path: String, target_key: &str) -> Option<String> {
+    match json {
+        Value::Object(map) => {
+            for (key, value) in map {
+                let new_path = if path.is_empty() {
+                    format!("$.{}", key)
+                } else {
+                    format!("{}.{}", path, key)
+                };
+                if key == target_key {
+                    return Some(new_path);
+                }
+                if let Some(found_path) = get_json_path(value, new_path, target_key) {
+                    return Some(found_path);
+                }
+            }
+        }
+        Value::Array(arr) => {
+            for (i, value) in arr.iter().enumerate() {
+                let new_path = format!("{}[{}]", path, i);
+                if let Some(found_path) = get_json_path(value, new_path, target_key) {
+                    return Some(found_path);
+                }
+            }
+        }
+        _ => (),
+    }
+    None
+}
+
+
 
 impl ToMd for Domain {
     fn to_md(&self, params: MdParams) -> String {
@@ -41,6 +77,20 @@ impl ToMd for Domain {
         } else {
             "Domain".to_string()
         };
+
+        // Here is our test code for the get_json_path function
+        // uncomment and check for the json renamed structure!
+        //
+        // let domain = self;
+        // let json = serde_json::to_value(&domain).unwrap();
+        // println!("json: {:?}", json);
+        // let target_key = "ldhName"; // Replace this with your actual target key
+        // let path = get_json_path(&json, String::new(), target_key);
+        // match path {
+        //     Some(path) => println!("Path to {}: {}", target_key, path),
+        //     None => println!("{} not found", target_key),
+        // }
+
         md.push_str(&header_text.to_header(params.heading_level, params.options));
 
         // multipart data
