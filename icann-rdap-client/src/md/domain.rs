@@ -90,6 +90,8 @@ impl ToMd for Domain {
         //     Some(path) => println!("Path to {}: {}", target_key, path),
         //     None => println!("{} not found", target_key),
         // }
+        // once we have the path we have to see if the path matches the json path for 
+        // THAT specific value in the redaction
 
         md.push_str(&header_text.to_header(params.heading_level, params.options));
 
