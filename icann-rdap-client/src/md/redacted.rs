@@ -52,51 +52,6 @@ use super::{string::StringUtil, table::MultiPartTable, MdParams, ToMd};
 //     }
 // }
 
-// single table version but is missing the borders
-// impl ToMd for Redacted {
-//     fn to_md(&self, params: MdParams) -> String {
-//         let data = vec![
-//             self.name
-//                 .description
-//                 .clone()
-//                 .or(self.name.type_field.clone())
-//                 .unwrap_or_default(),
-//             self.pre_path.clone().unwrap_or_default(),
-//             self.post_path.clone().unwrap_or_default(),
-//             self.replacement_path.clone().unwrap_or_default(),
-//             self.path_lang.clone().unwrap_or_default(),
-//             self.method
-//                 .as_ref()
-//                 .map(|m| m.to_string())
-//                 .unwrap_or_default(),
-//             self.reason
-//                 .as_ref()
-//                 .map(|m| m.to_string())
-//                 .unwrap_or_default(),
-//         ];
-
-//         let fields = vec![
-//             "name",
-//             "prePath",
-//             "postPath",
-//             "replacementPath",
-//             "pathLang",
-//             "method",
-//             "reason",
-//         ];
-
-//         let mut md: String = String::from("## Redacted\n\n"); // Add title
-
-//         md += &fields
-//             .iter()
-//             .zip(data.iter())
-//             .map(|(field, value)| format!("| {} | {} |\n", field, value))
-//             .collect::<Vec<String>>()
-//             .join(""); // Collect as Vec<String> and then join
-
-//         md
-//     }
-// }
 impl ToMd for &[Redacted] {
     fn to_md(&self, params: MdParams) -> String {
         let typeid = TypeId::of::<Redacted>();
@@ -110,7 +65,10 @@ impl ToMd for &[Redacted] {
         let mut table = MultiPartTable::new();
         table = table.header_ref(&"Fields");
 
-        for redacted in *self {
+        for (index, redacted) in self.iter().enumerate() {
+            // Add a row with the redaction number at the top of each record
+            table = table.and_data_ref(&"**Redaction**", &Some((index + 1).to_string()));
+
             table = table
                 .and_data_ref(
                     &"name",
