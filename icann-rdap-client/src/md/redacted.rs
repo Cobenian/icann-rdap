@@ -8,6 +8,7 @@ use icann_rdap_common::{
 
 use super::{string::StringUtil, table::MultiPartTable, MdParams, ToMd};
 
+// Save this until we decide which we like more.
 // multi table version
 // impl ToMd for Redacted {
 //     fn to_md(&self, params: MdParams) -> String {
@@ -66,7 +67,7 @@ impl ToMd for &[Redacted] {
         table = table.header_ref(&"Fields");
 
         for (index, redacted) in self.iter().enumerate() {
-            // Add a row with the redaction number at the top of each record
+            // just hardcode the ** for now to make redaction blue
             table = table.and_data_ref(&"**Redaction**", &Some((index + 1).to_string()));
 
             table = table
