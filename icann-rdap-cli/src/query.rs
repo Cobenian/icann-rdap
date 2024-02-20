@@ -238,37 +238,72 @@ fn do_output<'a, W: std::io::Write>(
         parent_type: response.rdap.get_type(),
     });
 
+    // This displays them all in multiple tables
+    // if let Some(redactions) = response.rdap.get_redaction_if_exists() {
+    //     for redaction in redactions.iter() {
+    //         // Assuming `redacted` is an instance of `Redacted`
+    //         // println!("!!!! -->  {:?}", redaction);
+    //         let mut skin = MadSkin::default_dark();
+    //         skin.set_headers_fg(Yellow);
+    //         skin.headers[1].align = Alignment::Center;
+    //         skin.headers[2].align = Alignment::Center;
+    //         skin.headers[3].align = Alignment::Center;
+    //         skin.headers[4].compound_style.set_fg(DarkGreen);
+    //         skin.headers[5].compound_style.set_fg(Magenta);
+    //         skin.headers[6].compound_style.set_fg(Cyan);
+    //         skin.headers[7].compound_style.set_fg(Red);
+    //         skin.bold.set_fg(DarkBlue);
+    //         skin.italic.set_fg(Red);
+    //         skin.quote_mark.set_fg(DarkBlue);
+    //         skin.table.set_fg(DarkGreen);
+    //         skin.table.align = Alignment::Center;
+    //         skin.inline_code.set_fgbg(Cyan, Reset);
+    //         skin.write_text_on(
+    //             write,
+    //             &redaction.to_md(MdParams {
+    //                 heading_level: 1,
+    //                 root: &response.rdap,
+    //                 parent_type: redaction.get_type(),
+    //                 check_types: &processing_params.check_types,
+    //                 options: &MdOptions::default(),
+    //                 req_data,
+    //             }),
+    //         )?;
+    //     }
+    // } else {
+    //     // do nothing for now
+    //     // Handle the case where there is no Redaction
+    //     // println!("XXXX No redaction found");
+    // }
+
     if let Some(redactions) = response.rdap.get_redaction_if_exists() {
-        for redaction in redactions.iter() {
-            // Assuming `redacted` is an instance of `Redacted`
-            // println!("!!!! -->  {:?}", redaction);
-            let mut skin = MadSkin::default_dark();
-            skin.set_headers_fg(Yellow);
-            skin.headers[1].align = Alignment::Center;
-            skin.headers[2].align = Alignment::Center;
-            skin.headers[3].align = Alignment::Center;
-            skin.headers[4].compound_style.set_fg(DarkGreen);
-            skin.headers[5].compound_style.set_fg(Magenta);
-            skin.headers[6].compound_style.set_fg(Cyan);
-            skin.headers[7].compound_style.set_fg(Red);
-            skin.bold.set_fg(DarkBlue);
-            skin.italic.set_fg(Red);
-            skin.quote_mark.set_fg(DarkBlue);
-            skin.table.set_fg(DarkGreen);
-            skin.table.align = Alignment::Center;
-            skin.inline_code.set_fgbg(Cyan, Reset);
-            skin.write_text_on(
-                write,
-                &redaction.to_md(MdParams {
-                    heading_level: 1,
-                    root: &response.rdap,
-                    parent_type: redaction.get_type(),
-                    check_types: &processing_params.check_types,
-                    options: &MdOptions::default(),
-                    req_data,
-                }),
-            )?;
-        }
+        let mut skin = MadSkin::default_dark();
+        skin.set_headers_fg(Yellow);
+        skin.headers[1].align = Alignment::Center;
+        skin.headers[2].align = Alignment::Center;
+        skin.headers[3].align = Alignment::Center;
+        skin.headers[4].compound_style.set_fg(DarkGreen);
+        skin.headers[5].compound_style.set_fg(Magenta);
+        skin.headers[6].compound_style.set_fg(Cyan);
+        skin.headers[7].compound_style.set_fg(Red);
+        skin.bold.set_fg(DarkBlue);
+        skin.italic.set_fg(Red);
+        skin.quote_mark.set_fg(DarkBlue);
+        skin.table.set_fg(DarkGreen);
+        skin.table.align = Alignment::Center;
+        skin.inline_code.set_fgbg(Cyan, Reset);
+
+        let all_redactions_md = redactions.as_slice().to_md(MdParams {
+            heading_level: 1,
+            root: &response.rdap,
+            parent_type: redactions[0].get_type(), // Assuming all redactions have the same type
+            check_types: &processing_params.check_types,
+            options: &MdOptions::default(),
+            req_data,
+        });
+
+        // Now `all_redactions_md` contains a single table with all redactions
+        skin.write_text_on(write, &all_redactions_md)?; // Write the entire table
     } else {
         // do nothing for now
         // Handle the case where there is no Redaction
