@@ -84,7 +84,6 @@ pub async fn rdap_url_request(url: &str, client: &Client) -> Result<ResponseData
     let json: Result<Value, serde_json::Error> = serde_json::from_str(&text);
     if let Ok(rdap_json) = json {
         let rdap = RdapResponse::try_from(rdap_json)?;
-        //println!("XXX rdap: {:?}", rdap.to_string());
         Ok(ResponseData {
             http_data,
             rdap_type: rdap.to_string(),
