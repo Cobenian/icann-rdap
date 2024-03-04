@@ -106,7 +106,7 @@ impl ToMd for RdapResponse {
             RdapResponse::Nameserver(nameserver) => nameserver.to_md(params),
             RdapResponse::Autnum(autnum) => autnum.to_md(params),
             RdapResponse::Network(network) => network.to_md(params),
-            RdapResponse::Redacted(redacted) => redacted.to_md(params),
+            RdapResponse::Redacted(redacted) => redacted.common.to_md(params),
             RdapResponse::DomainSearchResults(results) => results.to_md(params),
             RdapResponse::EntitySearchResults(results) => results.to_md(params),
             RdapResponse::NameserverSearchResults(results) => results.to_md(params),
