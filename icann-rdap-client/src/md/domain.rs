@@ -15,7 +15,10 @@ use super::{
     MdParams, ToMd, HR,
 };
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use serde_path_to_error::Path as SerdePath;
+use std::collections::HashMap;
 
 // This is phase one of this ... it's utter BS, of course, but it's a start
 fn redact_if_empty(value: &Option<String>) -> Option<String> {
@@ -56,6 +59,47 @@ fn get_json_path(json: &Value, path: String, target_key: &str) -> Option<String>
     None
 }
 
+// This is phase 2.5 where we did it only for the domain structure
+
+pub fn get_json_paths(domain: &Domain) -> Result<HashMap<String, String>, serde_json::Error> {
+    // Serialize the domain to a JSON string
+    let json = serde_json::to_string(domain)?;
+
+    // Deserialize the JSON string back into a Value
+    let value: Value = serde_json::from_str(&json)?;
+
+    // Initialize an empty HashMap to store the results
+    let mut paths = HashMap::new();
+
+    // Recursively explore the JSON Value to find all paths
+    explore_paths(&value, "".to_string(), &mut paths);
+
+    Ok(paths)
+}
+
+fn explore_paths(value: &Value, current_path: String, paths: &mut HashMap<String, String>) {
+    match value {
+        Value::Object(map) => {
+            for (key, value) in map {
+                let new_path = if current_path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{}.{}", current_path, key)
+                };
+                paths.insert(key.clone(), new_path.clone());
+                explore_paths(value, new_path, paths);
+            }
+        }
+        Value::Array(vec) => {
+            for (index, value) in vec.iter().enumerate() {
+                let new_path = format!("{}[{}]", current_path, index);
+                explore_paths(value, new_path, paths);
+            }
+        }
+        _ => {}
+    }
+}
+
 impl ToMd for Domain {
     fn to_md(&self, params: MdParams) -> String {
         let typeid = TypeId::of::<Domain>();
@@ -90,7 +134,7 @@ impl ToMd for Domain {
         // once we have the path we have to see if the path matches the json path for
         // THAT specific value in the redaction
 
-        // XXX Pase 3: ideally we throw 'self' (the domain) and the redaction at a library that
+        // XXX Phase 3: ideally we throw 'self' (the domain) and the redaction at a library that
         // figures this stuff out and then when we print the object to the table
         // the domain can look up the redaction and print the redacted value if it exists
 
