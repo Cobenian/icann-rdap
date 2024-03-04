@@ -108,7 +108,6 @@ impl TryFrom<Value> for RdapResponse {
     type Error = RdapResponseError;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        // println!("HEY ALLL LETS TO PRINT OUT SOME STUFF");
         let response = if let Some(object) = value.as_object() {
             object
         } else {
@@ -119,7 +118,6 @@ impl TryFrom<Value> for RdapResponse {
 
         // if it has an objectClassName
         if let Some(class_name) = response.get("objectClassName") {
-            // println!("Its a something , print it out");
             if let Some(name_str) = class_name.as_str() {
                 return match name_str {
                     "domain" => Ok(RdapResponse::Domain(serde_json::from_value(value)?)),
@@ -150,7 +148,6 @@ impl TryFrom<Value> for RdapResponse {
         }
         // else if it is a entity search result
         if let Some(result) = response.get("entitySearchResults") {
-            // println!("HEY WE HAZ A ENTITY result: {:?}", result);
             if result.is_array() {
                 return Ok(RdapResponse::EntitySearchResults(serde_json::from_value(
                     value,
@@ -176,7 +173,6 @@ impl TryFrom<Value> for RdapResponse {
 
         // we should not need to be doing this
         if let Some(result) = response.get("redacted") {
-            // println!("HEY WE HAZ A REDACTION result: {:?}", result);
             if result.is_array() {
                 return Ok(RdapResponse::Redacted(serde_json::from_value(value)?));
             } else {
