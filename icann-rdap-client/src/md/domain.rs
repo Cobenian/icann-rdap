@@ -17,7 +17,6 @@ use super::{
 
 use serde_json::Value;
 
-
 // This is phase one of this ... it's utter BS, of course, but it's a start
 fn redact_if_empty(value: &Option<String>) -> Option<String> {
     match value {
@@ -57,8 +56,6 @@ fn get_json_path(json: &Value, path: String, target_key: &str) -> Option<String>
     None
 }
 
-
-
 impl ToMd for Domain {
     fn to_md(&self, params: MdParams) -> String {
         let typeid = TypeId::of::<Domain>();
@@ -90,10 +87,10 @@ impl ToMd for Domain {
         //     Some(path) => println!("Path to {}: {}", target_key, path),
         //     None => println!("{} not found", target_key),
         // }
-        // once we have the path we have to see if the path matches the json path for 
+        // once we have the path we have to see if the path matches the json path for
         // THAT specific value in the redaction
 
-        // XXX Pase 3: ideally we throw 'self' (the domain) and the redaction at a library that 
+        // XXX Pase 3: ideally we throw 'self' (the domain) and the redaction at a library that
         // figures this stuff out and then when we print the object to the table
         // the domain can look up the redaction and print the redacted value if it exists
 
