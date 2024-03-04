@@ -93,6 +93,10 @@ impl ToMd for Domain {
         // once we have the path we have to see if the path matches the json path for 
         // THAT specific value in the redaction
 
+        // XXX Pase 3: ideally we throw 'self' (the domain) and the redaction at a library that 
+        // figures this stuff out and then when we print the object to the table
+        // the domain can look up the redaction and print the redacted value if it exists
+
         md.push_str(&header_text.to_header(params.heading_level, params.options));
 
         // multipart data
