@@ -239,7 +239,7 @@ fn do_output<'a, W: std::io::Write>(
                     req_data,
                 });
                 skin.write_text_on(write, &all_redactions_md)?; // Write them all into one table
-            } 
+            }
         }
         OutputType::Markdown => {
             writeln!(
