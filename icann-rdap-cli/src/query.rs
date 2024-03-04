@@ -212,8 +212,7 @@ fn do_output<'a, W: std::io::Write>(
                     req_data,
                 }),
             )?;
-
-            // Redactions Main Table
+            // Redactions
             if let Some(redactions) = response.rdap.get_redaction_if_exists() {
                 let mut skin = MadSkin::default_dark();
                 skin.set_headers_fg(Yellow);
@@ -240,10 +239,7 @@ fn do_output<'a, W: std::io::Write>(
                     req_data,
                 });
                 skin.write_text_on(write, &all_redactions_md)?; // Write them all into one table
-            } else {
-                // Handle the case where there is no Redaction
-                // do nothing for now
-            }
+            } 
         }
         OutputType::Markdown => {
             writeln!(
@@ -278,7 +274,7 @@ fn do_output<'a, W: std::io::Write>(
         _ => {} // do nothing
     };
 
-    // Now do the checks
+    // do we need this?
     let checks = response.rdap.get_checks(CheckParams {
         do_subchecks: true,
         root: &response.rdap,

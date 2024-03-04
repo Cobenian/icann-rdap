@@ -214,7 +214,14 @@ impl TryFrom<Value> for RdapResponse {
 impl RdapResponse {
     pub fn get_redaction_if_exists(&self) -> Option<Vec<redacted::Redacted>> {
         match self {
-            RdapResponse::Entity(_e) => None,
+            RdapResponse::Entity(e) => {
+                if let Some(redactions) = e.common.redacted.as_ref() {
+                    if !redactions.is_empty() {
+                        return Some(redactions.clone());
+                    }
+                }
+                None
+            }
             RdapResponse::Domain(d) => {
                 if let Some(redactions) = d.common.redacted.as_ref() {
                     if !redactions.is_empty() {
@@ -224,8 +231,8 @@ impl RdapResponse {
                 None
             }
             // nameserver
-            RdapResponse::Nameserver(d) => {
-                if let Some(redactions) = d.common.redacted.as_ref() {
+            RdapResponse::Nameserver(n) => {
+                if let Some(redactions) = n.common.redacted.as_ref() {
                     if !redactions.is_empty() {
                         return Some(redactions.clone());
                     }
@@ -233,8 +240,8 @@ impl RdapResponse {
                 None
             }
             // autnum
-            RdapResponse::Autnum(d) => {
-                if let Some(redactions) = d.common.redacted.as_ref() {
+            RdapResponse::Autnum(a) => {
+                if let Some(redactions) = a.common.redacted.as_ref() {
                     if !redactions.is_empty() {
                         return Some(redactions.clone());
                     }
@@ -242,8 +249,8 @@ impl RdapResponse {
                 None
             }
             // network
-            RdapResponse::Network(d) => {
-                if let Some(redactions) = d.common.redacted.as_ref() {
+            RdapResponse::Network(n) => {
+                if let Some(redactions) = n.common.redacted.as_ref() {
                     if !redactions.is_empty() {
                         return Some(redactions.clone());
                     }
