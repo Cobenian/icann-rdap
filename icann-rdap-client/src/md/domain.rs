@@ -15,10 +15,8 @@ use super::{
     MdParams, ToMd, HR,
 };
 
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use serde_path_to_error::Path as SerdePath;
-use std::collections::HashMap;
+
 
 // This is phase one of this ... it's utter BS, of course, but it's a start
 fn redact_if_empty(value: &Option<String>) -> Option<String> {
@@ -61,15 +59,15 @@ fn get_json_path(json: &Value, path: String, target_key: &str) -> Option<String>
 
 // This is phase 2.5 where we did it only for the domain structure
 
-pub fn get_json_paths(domain: &Domain) -> Result<HashMap<String, String>, serde_json::Error> {
+pub fn get_json_paths(domain: &Domain) -> Result<Vec<(String, String)>, serde_json::Error> {
     // Serialize the domain to a JSON string
     let json = serde_json::to_string(domain)?;
 
     // Deserialize the JSON string back into a Value
     let value: Value = serde_json::from_str(&json)?;
 
-    // Initialize an empty HashMap to store the results
-    let mut paths = HashMap::new();
+    // Initialize an empty Vec to store the results
+    let mut paths = Vec::new();
 
     // Recursively explore the JSON Value to find all paths
     explore_paths(&value, "".to_string(), &mut paths);
@@ -77,16 +75,16 @@ pub fn get_json_paths(domain: &Domain) -> Result<HashMap<String, String>, serde_
     Ok(paths)
 }
 
-fn explore_paths(value: &Value, current_path: String, paths: &mut HashMap<String, String>) {
+fn explore_paths(value: &Value, current_path: String, paths: &mut Vec<(String, String)>) {
     match value {
         Value::Object(map) => {
             for (key, value) in map {
                 let new_path = if current_path.is_empty() {
-                    key.clone()
+                    format!("$.{}", key)
                 } else {
                     format!("{}.{}", current_path, key)
                 };
-                paths.insert(key.clone(), new_path.clone());
+                paths.push((key.clone(), new_path.clone()));
                 explore_paths(value, new_path, paths);
             }
         }
@@ -138,11 +136,25 @@ impl ToMd for Domain {
         // figures this stuff out and then when we print the object to the table
         // the domain can look up the redaction and print the redacted value if it exists
 
+        // iterate over all the pub struct fields in the domain and call get_json_path on them and put all the responses in a big map
+        // then we can use that map to look up the redaction for each field and print the redacted value if it exists
+        let paths = match get_json_paths(&self) {
+            Ok(paths) => paths,
+            Err(err) => {
+                eprintln!("Error: {}", err);
+                return String::new(); // or any other appropriate error handling
+            }
+        };
+        for (key, value) in paths {
+            println!("{}: {}", key, value);
+        }
+
         md.push_str(&header_text.to_header(params.heading_level, params.options));
 
         // multipart data
         let mut table = MultiPartTable::new();
 
+        
         // identifiers
         table = table
             .header_ref(&"Identifiers")
