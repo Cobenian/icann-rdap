@@ -358,7 +358,6 @@ mod tests {
         let actual = RdapResponse::try_from(expected).unwrap();
 
         // THEN
-        // XXX how do we check that this is a domain search result with redaction?
         assert!(matches!(actual, RdapResponse::Domain(_)));
     }
 
@@ -374,7 +373,6 @@ mod tests {
         let actual = RdapResponse::try_from(expected).unwrap();
 
         // THEN
-        // XXX how do we check that this is a domain search result with redaction?
         assert!(matches!(actual, RdapResponse::DomainSearchResults(_)));
     }
 

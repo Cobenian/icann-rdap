@@ -32,12 +32,10 @@ pub struct Name {
 }
 
 impl Name {
-    // Getter for `description`
     pub fn description(&self) -> Option<&String> {
         self.description.as_ref()
     }
 
-    // Getter for `type_`
     pub fn type_field(&self) -> Option<&String> {
         self.type_field.as_ref()
     }
@@ -152,8 +150,7 @@ impl Redacted {
             path_lang: None,
             replacement_path: None,
             method: Some(Method::default()),
-            common: Common::builder().build(), // we have to have this appease the compiler but we ARE common now?? wtf?
-                                               // common: Common::level0_with_options().extension("redacted").build(),
+            common: Common::builder().build(),
         }
     }
 
