@@ -85,14 +85,10 @@ fn explore_paths(value: &Value, current_path: String, root_paths: &mut Vec<(Stri
                 } else {
                     format!("{}.{}", current_path, key)
                 };
-                if new_path.starts_with("$.redacted") {
-                    let right_hand_side = if ["prePath", "postPath", "name", "reason", "replacementPath", "method"].contains(&key.as_str()) {
-                        value.as_str().unwrap_or("").to_string()
-                    } else {
-                        new_path.clone()
-                    };
+                if new_path.starts_with("$.redacted") && ["prePath", "postPath"].contains(&key.as_str()) {
+                    let right_hand_side = value.as_str().unwrap_or("").to_string();
                     redacted_paths.push((key.clone(), right_hand_side));
-                } else {
+                } else if !new_path.starts_with("$.redacted") {
                     root_paths.push((key.clone(), new_path.clone()));
                 }
                 explore_paths(value, new_path, root_paths, redacted_paths);
