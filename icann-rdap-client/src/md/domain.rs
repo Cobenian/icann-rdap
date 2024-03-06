@@ -59,7 +59,52 @@ fn get_json_path(json: &Value, path: String, target_key: &str) -> Option<String>
 
 // This is phase 2.5 where we did it only for the domain structure
 
-pub fn get_json_paths(domain: &Domain) -> Result<(Vec<(String, String)>, Vec<(String, String)>), serde_json::Error> {
+// pub fn get_json_paths(domain: &Domain) -> Result<(Vec<(String, String)>, Vec<(String, String)>), serde_json::Error> {
+//     // Serialize the domain to a JSON string
+//     let json = serde_json::to_string(domain)?;
+
+//     // Deserialize the JSON string back into a Value
+//     let value: Value = serde_json::from_str(&json)?;
+
+//     // Initialize two empty Vecs to store the results
+//     let mut root_paths = Vec::new();
+//     let mut redacted_paths = Vec::new();
+
+//     // Recursively explore the JSON Value to find all paths
+//     explore_paths(&value, "".to_string(), &mut root_paths, &mut redacted_paths);
+
+//     Ok((root_paths, redacted_paths))
+// }
+
+// fn explore_paths(value: &Value, current_path: String, root_paths: &mut Vec<(String, String)>, redacted_paths: &mut Vec<(String, String)>) {
+//     match value {
+//         Value::Object(map) => {
+//             for (key, value) in map {
+//                 let new_path = if current_path.is_empty() {
+//                     format!("$.{}", key)
+//                 } else {
+//                     format!("{}.{}", current_path, key)
+//                 };
+//                 if new_path.starts_with("$.redacted") && ["prePath", "postPath"].contains(&key.as_str()) {
+//                     let right_hand_side = value.as_str().unwrap_or("").to_string();
+//                     redacted_paths.push((key.clone(), right_hand_side));
+//                 } else if !new_path.starts_with("$.redacted") {
+//                     root_paths.push((key.clone(), new_path.clone()));
+//                 }
+//                 explore_paths(value, new_path, root_paths, redacted_paths);
+//             }
+//         }
+//         Value::Array(vec) => {
+//             for (index, value) in vec.iter().enumerate() {
+//                 let new_path = format!("{}[{}]", current_path, index);
+//                 explore_paths(value, new_path, root_paths, redacted_paths);
+//             }
+//         }
+//         _ => {}
+//     }
+// }
+
+pub fn get_json_paths(domain: &Domain) -> Result<(Vec<String>, Vec<String>), serde_json::Error> {
     // Serialize the domain to a JSON string
     let json = serde_json::to_string(domain)?;
 
@@ -67,16 +112,16 @@ pub fn get_json_paths(domain: &Domain) -> Result<(Vec<(String, String)>, Vec<(St
     let value: Value = serde_json::from_str(&json)?;
 
     // Initialize two empty Vecs to store the results
-    let mut root_paths = Vec::new();
-    let mut redacted_paths = Vec::new();
+    let mut pre_paths = Vec::new();
+    let mut post_paths = Vec::new();
 
     // Recursively explore the JSON Value to find all paths
-    explore_paths(&value, "".to_string(), &mut root_paths, &mut redacted_paths);
+    explore_paths(&value, "".to_string(), &mut pre_paths, &mut post_paths);
 
-    Ok((root_paths, redacted_paths))
+    Ok((pre_paths, post_paths))
 }
 
-fn explore_paths(value: &Value, current_path: String, root_paths: &mut Vec<(String, String)>, redacted_paths: &mut Vec<(String, String)>) {
+fn explore_paths(value: &Value, current_path: String, pre_paths: &mut Vec<String>, post_paths: &mut Vec<String>) {
     match value {
         Value::Object(map) => {
             for (key, value) in map {
@@ -85,19 +130,20 @@ fn explore_paths(value: &Value, current_path: String, root_paths: &mut Vec<(Stri
                 } else {
                     format!("{}.{}", current_path, key)
                 };
-                if new_path.starts_with("$.redacted") && ["prePath", "postPath"].contains(&key.as_str()) {
-                    let right_hand_side = value.as_str().unwrap_or("").to_string();
-                    redacted_paths.push((key.clone(), right_hand_side));
-                } else if !new_path.starts_with("$.redacted") {
-                    root_paths.push((key.clone(), new_path.clone()));
+                if new_path.starts_with("$.redacted") && value.is_string() {
+                    if key == "prePath" {
+                        pre_paths.push(value.as_str().unwrap().to_string());
+                    } else if key == "postPath" {
+                        post_paths.push(value.as_str().unwrap().to_string());
+                    }
                 }
-                explore_paths(value, new_path, root_paths, redacted_paths);
+                explore_paths(value, new_path, pre_paths, post_paths);
             }
         }
         Value::Array(vec) => {
             for (index, value) in vec.iter().enumerate() {
                 let new_path = format!("{}[{}]", current_path, index);
-                explore_paths(value, new_path, root_paths, redacted_paths);
+                explore_paths(value, new_path, pre_paths, post_paths);
             }
         }
         _ => {}
@@ -144,23 +190,36 @@ impl ToMd for Domain {
 
         // iterate over all the pub struct fields in the domain and call get_json_path on them and put all the responses in a big map
         // then we can use that map to look up the redaction for each field and print the redacted value if it exists
-        let (root_paths, redacted_paths) = match get_json_paths(&self) {
-            Ok((root_paths, redacted_paths)) => (root_paths, redacted_paths),
+        // let (root_paths, redacted_paths) = match get_json_paths(&self) {
+        //     Ok((root_paths, redacted_paths)) => (root_paths, redacted_paths),
+        //     Err(err) => {
+        //         eprintln!("Error: {}", err);
+        //         return String::new(); // or any other appropriate error handling
+        //     }
+        // };
+        
+        // println!("Root paths:");
+        // for (key, value) in root_paths {
+        //     println!("{}: {}", key, value);
+        // }
+        
+        // println!("\nRedacted paths:");
+        // for (key, value) in redacted_paths {
+        //     println!("{}: {}", key, value);
+        // }
+        let (mut pre_paths, post_paths) = match get_json_paths(&self) {
+            Ok((pre_paths, post_paths)) => (pre_paths, post_paths),
             Err(err) => {
                 eprintln!("Error: {}", err);
                 return String::new(); // or any other appropriate error handling
             }
         };
         
-        println!("Root paths:");
-        for (key, value) in root_paths {
-            println!("{}: {}", key, value);
-        }
+        pre_paths.extend(post_paths);
+        pre_paths.sort();
+        pre_paths.dedup();
         
-        println!("\nRedacted paths:");
-        for (key, value) in redacted_paths {
-            println!("{}: {}", key, value);
-        }
+        println!("Combined Paths: {:?}", pre_paths);
 
         md.push_str(&header_text.to_header(params.heading_level, params.options));
 
