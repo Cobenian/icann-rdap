@@ -16,6 +16,8 @@ use super::{
 };
 
 use serde_json::Value;
+use jsonpath_lib as jsonpath;
+// use serde_json::json;
 
 
 // This is phase one of this ... it's utter BS, of course, but it's a start
@@ -150,6 +152,51 @@ fn explore_paths(value: &Value, current_path: String, pre_paths: &mut Vec<String
     }
 }
 
+
+
+fn filter_existing_paths(paths: Vec<String>, domain: &Domain) -> Result<Vec<String>, serde_json::Error> {
+    // Serialize the domain to a JSON string
+    let json_string = serde_json::to_string(domain)?;
+
+    // Parse the JSON string into a Value
+    let json_value: Value = serde_json::from_str(&json_string)?;
+
+    // Select all entities
+    let entities = jsonpath::select(&json_value, "$.entities[*]").unwrap();
+
+    // Filter entities based on their roles
+    let administrative_entities: Vec<&Value> = entities.iter()
+        .cloned()
+        .filter(|entity| entity["roles"][0] == "administrative")
+        .collect();
+
+    let billing_entities: Vec<&Value> = entities.iter()
+        .cloned()
+        .filter(|entity| entity["roles"][0] == "billing")
+        .collect();
+
+    let registrant_entities: Vec<&Value> = entities.iter()
+        .cloned()
+        .filter(|entity| entity["roles"][0] == "registrant")
+        .collect();
+
+    println!("[ADEBUG] Administrative entities: {:?}", administrative_entities);
+    println!("[ADEBUG] Billing entities: {:?}", billing_entities);
+    println!("[ADEBUG] Registrant entities: {:?}", registrant_entities);
+
+    // Filter the paths that exist in the domain
+    let existing_paths: Vec<String> = paths.into_iter()
+        .filter(|path| {
+            println!("[ADEBUG] Trying Path: {},", path);
+            let result = jsonpath::select(&json_value, &format!("{}", path));
+            println!("[ADEBUG] Result: {:?}", result);
+            result.is_ok()
+        })
+        .collect();
+
+    Ok(existing_paths)
+}
+
 impl ToMd for Domain {
     fn to_md(&self, params: MdParams) -> String {
         let typeid = TypeId::of::<Domain>();
@@ -220,6 +267,16 @@ impl ToMd for Domain {
         pre_paths.dedup();
         
         println!("Combined Paths: {:?}", pre_paths);
+
+        let existing_pre_paths = match filter_existing_paths(pre_paths, &self) {
+            Ok(existing_pre_paths) => existing_pre_paths,
+            Err(err) => {
+                eprintln!("Error: {}", err);
+                return String::new(); // or any other appropriate error handling
+            }
+        };
+        
+        println!("Existing prePaths: {:?}", existing_pre_paths);
 
         md.push_str(&header_text.to_header(params.heading_level, params.options));
 

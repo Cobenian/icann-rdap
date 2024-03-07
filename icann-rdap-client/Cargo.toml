@@ -29,6 +29,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 serde_path_to_error = "0.1.6"
+jsonpath_lib = "0.2.6"
 
 [dev-dependencies]
 
