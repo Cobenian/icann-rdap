@@ -25,8 +25,6 @@ serde_json.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
 
 [dev-dependencies]
 
@@ -35,6 +33,3 @@ rstest = "0.17.0"
 
 # tokio async runtime
 tokio = { version = "1.21", features = [ "full" ] }
-
-# tracing
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
