@@ -244,8 +244,6 @@ pub struct ObjectCommon {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entities: Option<Vec<Entity>>,
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub redacted: Option<Vec<Redacted>>,
 }
 
 #[buildstructor::buildstructor]

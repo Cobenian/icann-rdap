@@ -100,7 +100,7 @@ impl GetChecks for RdapResponse {
             RdapResponse::Autnum(a) => a.get_checks(params),
             RdapResponse::Network(n) => n.get_checks(params),
             RdapResponse::Redacted(_) => Checks {
-                // XXX: This is a hack to get around the fact that Redaction doesn't implement GetChecks
+                //  Redaction doesn't actually implement GetChecks
                 struct_name: "",
                 items: vec![],
                 sub_checks: vec![],

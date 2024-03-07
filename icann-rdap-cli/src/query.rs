@@ -274,7 +274,6 @@ fn do_output<'a, W: std::io::Write>(
         _ => {} // do nothing
     };
 
-    // do we need this?
     let checks = response.rdap.get_checks(CheckParams {
         do_subchecks: true,
         root: &response.rdap,

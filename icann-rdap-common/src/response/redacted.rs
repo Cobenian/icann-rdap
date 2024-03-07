@@ -1,7 +1,3 @@
-// These are my first initial thoughts on how we _might_ structure a redacted member according to
-// draft-ietf-regext-rdap-redacted-16
-// I'm not saying this is correct, but let's get something down to get things started.
-
 use std::any::TypeId;
 
 use buildstructor::Builder;
@@ -13,21 +9,12 @@ use std::fmt;
 
 use super::types::Common;
 
-// Probably going need these soon!
-// use super::{
-//   types::{to_option_status, Common, Link, ObjectCommon},
-//   GetSelfLink, RdapResponseError, SelfLink, ToChild,
-// };
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Name {
     #[serde(rename = "description")]
-    // #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
-    // #[serde(default)]
     #[serde(rename = "type")]
-    // #[serde(skip_serializing_if = "Option::is_none")]
     pub type_field: Option<String>,
 }
 
@@ -117,7 +104,6 @@ impl Default for Reason {
         Self {
             description: None,
             type_field: None,
-            // provide default values for the fields of Reason
         }
     }
 }
@@ -128,7 +114,6 @@ impl Default for Method {
     }
 }
 
-// We need this to display anything for Method
 impl fmt::Display for Method {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -198,8 +183,6 @@ mod tests {
 
     #[test]
     fn GIVEN_redaction_WHEN_set_THEN_success() {
-        // this is a just to test that I set up the structures correctly
-        // Should you change them, this will fail
         // GIVEN
         let mut name = Redacted::new();
         name.name = Name {
@@ -242,7 +225,6 @@ mod tests {
 
     #[test]
     fn GIVEN_redaction_WHEN_deserialize_THEN_success() {
-        //this is the actual serialization test
         // GIVEN
         let expected = r#"
         {
