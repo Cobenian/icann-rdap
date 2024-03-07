@@ -171,7 +171,7 @@ impl TryFrom<Value> for RdapResponse {
             }
         }
 
-        // we should not need to be doing this
+        // else if it has a redacted
         if let Some(result) = response.get("redacted") {
             if result.is_array() {
                 return Ok(RdapResponse::Redacted(serde_json::from_value(value)?));
