@@ -154,9 +154,11 @@ fn explore_paths(value: &Value, current_path: String, pre_paths: &mut Vec<String
 
 
 
-fn filter_existing_paths(paths: Vec<String>, domain: &Domain) -> Result<Vec<String>, serde_json::Error> {
+fn filter_existing_paths(redacted_paths: Vec<String>, domain: &Domain) -> Result<Vec<String>, serde_json::Error> {
     // Serialize the domain to a JSON string
-    let json_string = serde_json::to_string(domain)?;
+    let json_string = serde_json::to_string_pretty(domain)?;
+    // Pretty-print out the json string
+    // println!("[ADEBUG] JSON String: {}", json_string);
 
     // Parse the JSON string into a Value
     let json_value: Value = serde_json::from_str(&json_string)?;
@@ -184,8 +186,8 @@ fn filter_existing_paths(paths: Vec<String>, domain: &Domain) -> Result<Vec<Stri
     println!("[ADEBUG] Billing entities: {:?}", billing_entities);
     println!("[ADEBUG] Registrant entities: {:?}", registrant_entities);
 
-    // Filter the paths that exist in the domain
-    let existing_paths: Vec<String> = paths.into_iter()
+    // Find the paths that exist in the Domain JSON as well
+    let existing_paths: Vec<String> = redacted_paths.into_iter()
         .filter(|path| {
             println!("[ADEBUG] Trying Path: {},", path);
             let result = jsonpath::select(&json_value, &format!("{}", path));
@@ -196,6 +198,46 @@ fn filter_existing_paths(paths: Vec<String>, domain: &Domain) -> Result<Vec<Stri
 
     Ok(existing_paths)
 }
+
+// for the keys and json paths of the domain only
+fn explore_kjp(value: &Value, current_path: String, kjp: &mut Vec<(String, String)>, in_redacted: bool) {
+    match value {
+        Value::Object(map) => {
+            for (key, value) in map {
+                let new_path = if current_path.is_empty() {
+                    format!("$.{}", key)
+                } else {
+                    format!("{}.{}", current_path, key)
+                };
+                let new_in_redacted = in_redacted || key == "redacted";
+                if !new_in_redacted {
+                    kjp.push((key.clone(), new_path.clone()));
+                }
+                explore_kjp(value, new_path, kjp, new_in_redacted);
+            }
+        }
+        Value::Array(vec) => {
+            for (index, value) in vec.iter().enumerate() {
+                let new_path = format!("{}[{}]", current_path, index);
+                if !in_redacted {
+                    kjp.push((index.to_string(), new_path.clone()));
+                }
+                explore_kjp(value, new_path, kjp, in_redacted);
+            }
+        }
+        _ => {}
+    }
+}
+
+pub fn get_domain_kjp(domain: &Domain) -> Result<Vec<(String, String)>, serde_json::Error> {
+    let json = serde_json::to_string(domain)?;
+    let value: Value = serde_json::from_str(&json)?;
+    let mut kjp = Vec::new();
+    explore_kjp(&value, "".to_string(), &mut kjp, false);
+    Ok(kjp)
+}
+
+
 
 impl ToMd for Domain {
     fn to_md(&self, params: MdParams) -> String {
@@ -266,19 +308,25 @@ impl ToMd for Domain {
         pre_paths.sort();
         pre_paths.dedup();
         
-        println!("Combined Paths: {:?}", pre_paths);
+        println!("Combined Redacted Paths:");
+        for path in &pre_paths {
+            println!("{}", path);
+        }
+        let redacted_paths = pre_paths;
 
-        let existing_pre_paths = match filter_existing_paths(pre_paths, &self) {
-            Ok(existing_pre_paths) => existing_pre_paths,
-            Err(err) => {
-                eprintln!("Error: {}", err);
-                return String::new(); // or any other appropriate error handling
+        let domain_key_and_jsonpaths = match get_domain_kjp(&self) {
+            Ok(result) => result,
+            Err(e) => {
+                eprintln!("Error getting domain key and JSON paths: {}", e);
+                return; // or handle the error in some other way
             }
         };
+        println!("Domain Key and JSON Paths:");
         
-        println!("Existing prePaths: {:?}", existing_pre_paths);
-
-        md.push_str(&header_text.to_header(params.heading_level, params.options));
+        for (key, value) in &domain_key_and_jsonpaths {
+            println!("{}: {}", key, value);
+        }
+        
 
         // multipart data
         let mut table = MultiPartTable::new();
