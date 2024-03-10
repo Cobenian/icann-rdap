@@ -165,7 +165,6 @@ impl Network {
             common: Common::level0_with_options()
                 .extension("cidr0")
                 .and_notices(notices)
-                .and_redacted(redacted)
                 .build(),
             object_common: ObjectCommon::ip_network()
                 .and_handle(handle)
@@ -175,6 +174,7 @@ impl Network {
                 .and_status(status)
                 .and_port_43(port_43)
                 .and_entities(entities)
+                .and_redacted(redacted)
                 .build(),
             start_address: Some(cidr.first_address().to_string()),
             end_address: Some(cidr.last_address().to_string()),

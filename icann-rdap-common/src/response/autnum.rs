@@ -49,6 +49,7 @@ impl Autnum {
     ///   .build();
     /// ```
     #[builder(entry = "basic")]
+
     pub fn new_autnum(
         autnum_range: std::ops::Range<u32>,
         handle: Option<String>,
@@ -67,10 +68,7 @@ impl Autnum {
         let events = (!events.is_empty()).then_some(events);
         let notices = (!notices.is_empty()).then_some(notices);
         Self {
-            common: Common::builder()
-                .and_notices(notices)
-                .and_redacted(redacted)
-                .build(),
+            common: Common::builder().and_notices(notices).build(),
             object_common: ObjectCommon::autnum()
                 .and_handle(handle)
                 .and_remarks(remarks)
@@ -79,6 +77,7 @@ impl Autnum {
                 .and_status(to_option_status(statuses))
                 .and_port_43(port_43)
                 .and_entities(entities)
+                .and_redacted(redacted)
                 .build(),
             start_autnum: Some(autnum_range.start),
             end_autnum: Some(autnum_range.end),

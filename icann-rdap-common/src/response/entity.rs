@@ -84,10 +84,7 @@ impl Entity {
         let events = (!events.is_empty()).then_some(events);
         let notices = (!notices.is_empty()).then_some(notices);
         Self {
-            common: Common::builder()
-                .and_notices(notices)
-                .and_redacted(redacted)
-                .build(),
+            common: Common::builder().and_notices(notices).build(),
             object_common: ObjectCommon::entity()
                 .handle(handle.into())
                 .and_remarks(remarks)
@@ -96,6 +93,7 @@ impl Entity {
                 .and_status(to_option_status(statuses))
                 .and_port_43(port_43)
                 .and_entities(entities)
+                .and_redacted(redacted)
                 .build(),
             vcard_array: contact.map(|c| c.to_vcard()),
             roles,

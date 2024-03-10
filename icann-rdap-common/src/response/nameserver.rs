@@ -103,10 +103,7 @@ impl Nameserver {
         let events = (!events.is_empty()).then_some(events);
         let notices = (!notices.is_empty()).then_some(notices);
         Ok(Self {
-            common: Common::builder()
-                .and_notices(notices)
-                .and_redacted(redacted)
-                .build(),
+            common: Common::builder().and_notices(notices).build(),
             object_common: ObjectCommon::nameserver()
                 .and_handle(handle)
                 .and_remarks(remarks)
@@ -115,6 +112,7 @@ impl Nameserver {
                 .and_status(to_option_status(statuses))
                 .and_port_43(port_43)
                 .and_entities(entities)
+                .and_redacted(redacted)
                 .build(),
             ldh_name: Some(ldh_name.into()),
             unicode_name: None,
