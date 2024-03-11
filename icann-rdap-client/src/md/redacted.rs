@@ -1,13 +1,9 @@
-use std::any::TypeId;
-
-// use crate::md::{types::checks_to_table, FromMd};
 use icann_rdap_common::response::redacted::Redacted;
 
 use super::{string::StringUtil, table::MultiPartTable, MdOptions, MdParams, ToMd};
 
 impl ToMd for &[Redacted] {
     fn to_md(&self, params: MdParams) -> String {
-        let typeid = TypeId::of::<Redacted>();
         let mut md = String::new();
 
         // header

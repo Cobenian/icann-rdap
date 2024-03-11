@@ -14,7 +14,6 @@ use self::{
     help::Help,
     nameserver::Nameserver,
     network::Network,
-    // redacted::Redacted,
     search::{DomainSearchResults, EntitySearchResults, NameserverSearchResults},
     types::{Link, Links, RdapConformance},
 };
@@ -101,8 +100,6 @@ pub enum RdapResponse {
 
     // Help
     Help(Help),
-    // Redacted
-    // Redacted(Redacted),
 }
 
 impl TryFrom<Value> for RdapResponse {
@@ -172,17 +169,6 @@ impl TryFrom<Value> for RdapResponse {
             }
         }
 
-        // XXX else if it has a redacted
-        // if let Some(result) = response.get("redacted") {
-        //     if result.is_array() {
-        //         return Ok(RdapResponse::Redacted(serde_json::from_value(value)?));
-        //     } else {
-        //         return Err(RdapResponseError::WrongJsonType(
-        //             "redacted' is not an array".to_string(),
-        //         ));
-        //     }
-        // }
-
         // else if it has an errorCode
         if let Some(result) = response.get("errorCode") {
             if result.is_u64() {
@@ -209,56 +195,6 @@ impl TryFrom<Value> for RdapResponse {
 }
 
 impl RdapResponse {
-    // XXX
-    // pub fn get_redaction_if_exists(&self) -> Option<Vec<redacted::Redacted>> {
-    //     match self {
-    //         RdapResponse::Entity(e) => {
-    //             if let Some(redactions) = e.common.redacted.as_ref() {
-    //                 if !redactions.is_empty() {
-    //                     return Some(redactions.clone());
-    //                 }
-    //             }
-    //             None
-    //         }
-    //         RdapResponse::Domain(d) => {
-    //             if let Some(redactions) = d.common.redacted.as_ref() {
-    //                 if !redactions.is_empty() {
-    //                     return Some(redactions.clone());
-    //                 }
-    //             }
-    //             None
-    //         }
-    //         // nameserver
-    //         RdapResponse::Nameserver(n) => {
-    //             if let Some(redactions) = n.common.redacted.as_ref() {
-    //                 if !redactions.is_empty() {
-    //                     return Some(redactions.clone());
-    //                 }
-    //             }
-    //             None
-    //         }
-    //         // autnum
-    //         RdapResponse::Autnum(a) => {
-    //             if let Some(redactions) = a.common.redacted.as_ref() {
-    //                 if !redactions.is_empty() {
-    //                     return Some(redactions.clone());
-    //                 }
-    //             }
-    //             None
-    //         }
-    //         // network
-    //         RdapResponse::Network(n) => {
-    //             if let Some(redactions) = n.common.redacted.as_ref() {
-    //                 if !redactions.is_empty() {
-    //                     return Some(redactions.clone());
-    //                 }
-    //             }
-    //             None
-    //         }
-    //         _ => None,
-    //     }
-    // }
-
     pub fn get_type(&self) -> TypeId {
         match self {
             RdapResponse::Entity(_) => TypeId::of::<Entity>(),
@@ -271,7 +207,6 @@ impl RdapResponse {
             RdapResponse::NameserverSearchResults(_) => TypeId::of::<NameserverSearchResults>(),
             RdapResponse::ErrorResponse(_) => TypeId::of::<crate::response::Error>(),
             RdapResponse::Help(_) => TypeId::of::<Help>(),
-            // RdapResponse::Redacted(_) => TypeId::of::<Redacted>(),
         }
     }
 
@@ -288,7 +223,6 @@ impl RdapResponse {
 
             RdapResponse::ErrorResponse(_) => None,
             RdapResponse::Help(_) => None,
-            // RdapResponse::Redacted(_) => None,
         }
     }
 
@@ -304,7 +238,6 @@ impl RdapResponse {
             RdapResponse::NameserverSearchResults(s) => s.common.rdap_conformance.as_ref(),
             RdapResponse::ErrorResponse(e) => e.common.rdap_conformance.as_ref(),
             RdapResponse::Help(h) => h.common.rdap_conformance.as_ref(),
-            // RdapResponse::Redacted(r) => r.common.rdap_conformance.as_ref(),
         }
     }
 

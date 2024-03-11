@@ -6,8 +6,6 @@ use crate::check::Checks;
 
 use std::fmt;
 
-// use super::types::{Common, ObjectCommon};
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Name {
     #[serde(rename = "description")]
@@ -57,13 +55,6 @@ pub enum Method {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Redacted {
-    // #[serde(flatten)]
-    // pub common: Common,
-
-    // #[serde(flatten)]
-    // pub object_common: ObjectCommon,
-
-    // Required
     #[serde[rename = "name"]]
     pub name: Name,
 
@@ -137,8 +128,6 @@ impl Redacted {
             path_lang: None,
             replacement_path: None,
             method: Some(Method::default()),
-            // common: Common::builder().build(),
-            // object_common: ObjectCommon::builder().build(),
         }
     }
 
@@ -157,27 +146,6 @@ impl Redacted {
         TypeId::of::<Redacted>()
     }
 }
-
-/// Represents RDAP nameserver search results.
-// #[derive(Serialize, Deserialize, Builder, Clone, PartialEq, Debug, Eq)]
-// pub struct RedactedResults {
-//     #[serde(flatten)]
-//     pub common: Common,
-
-//     #[serde(rename = "redacted")]
-//     pub results: Vec<Redacted>,
-// }
-
-// #[buildstructor::buildstructor]
-// impl RedactedResults {
-//     #[builder(entry = "basic")]
-//     pub fn new_empty() -> Self {
-//         Self {
-//             // common: Common::builder().build(),
-//             results: Vec::new(),
-//         }
-//     }
-// }
 
 #[cfg(test)]
 #[allow(non_snake_case)]

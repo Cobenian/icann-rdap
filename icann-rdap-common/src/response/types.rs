@@ -2,7 +2,6 @@ use buildstructor::Builder;
 use serde::{Deserialize, Serialize};
 
 use super::{entity::Entity, redacted::Redacted};
-// use super::{entity::Entity};
 
 /// Represents an RDAP extension identifier.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
