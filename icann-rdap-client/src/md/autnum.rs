@@ -10,7 +10,7 @@ use super::{
     string::StringUtil,
     table::{MultiPartTable, ToMpTable},
     types::checks_to_table,
-    FromMd, MdParams, ToMd, HR, 
+    FromMd, MdParams, ToMd, HR,
 };
 
 impl ToMd for Autnum {
@@ -78,11 +78,7 @@ impl ToMd for Autnum {
         );
 
         if let Some(redacted) = &self.object_common.redacted {
-            md.push_str(
-                &redacted
-                    .as_slice()
-                    .to_md(params.from_parent(typeid)),
-            );
+            md.push_str(&redacted.as_slice().to_md(params.from_parent(typeid)));
         }
 
         md.push('\n');
