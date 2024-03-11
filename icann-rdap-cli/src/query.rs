@@ -271,6 +271,24 @@ fn do_output<'a, W: std::io::Write>(
                 writeln!(write, "{}", all_redactions_md)?; // Write them all into one table
             }
         }
+        OutputType::Markdown => {
+            writeln!(
+                write,
+                "{}",
+                response.rdap.to_md(MdParams {
+                    heading_level: 1,
+                    root: &response.rdap,
+                    parent_type: response.rdap.get_type(),
+                    check_types: &processing_params.check_types,
+                    options: &MdOptions {
+                        text_style_char: '_',
+                        style_in_justify: true,
+                        ..MdOptions::default()
+                    },
+                    req_data,
+                })
+            )?;
+        }
         _ => {} // do nothing
     };
 

@@ -244,6 +244,9 @@ pub struct ObjectCommon {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entities: Option<Vec<Entity>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redacted: Option<Vec<Redacted>>,
 }
 
 #[buildstructor::buildstructor]
@@ -257,6 +260,7 @@ impl ObjectCommon {
         status: Option<Status>,
         port_43: Option<Port43>,
         entities: Option<Vec<Entity>>,
+        redacted: Option<Vec<Redacted>>,
     ) -> Self {
         Self {
             object_class_name: "domain".to_string(),
@@ -267,6 +271,7 @@ impl ObjectCommon {
             status,
             port_43,
             entities,
+            redacted,
         }
     }
 
@@ -279,6 +284,7 @@ impl ObjectCommon {
         status: Option<Status>,
         port_43: Option<Port43>,
         entities: Option<Vec<Entity>>,
+        redacted: Option<Vec<Redacted>>,
     ) -> Self {
         Self {
             object_class_name: "ip network".to_string(),
@@ -289,6 +295,7 @@ impl ObjectCommon {
             status,
             port_43,
             entities,
+            redacted,
         }
     }
 
@@ -301,6 +308,7 @@ impl ObjectCommon {
         status: Option<Status>,
         port_43: Option<Port43>,
         entities: Option<Vec<Entity>>,
+        redacted: Option<Vec<Redacted>>,
     ) -> Self {
         Self {
             object_class_name: "autnum".to_string(),
@@ -311,6 +319,7 @@ impl ObjectCommon {
             status,
             port_43,
             entities,
+            redacted,
         }
     }
 
@@ -323,6 +332,7 @@ impl ObjectCommon {
         status: Option<Status>,
         port_43: Option<Port43>,
         entities: Option<Vec<Entity>>,
+        redacted: Option<Vec<Redacted>>,
     ) -> Self {
         Self {
             object_class_name: "nameserver".to_string(),
@@ -333,6 +343,7 @@ impl ObjectCommon {
             status,
             port_43,
             entities,
+            redacted,
         }
     }
 
@@ -345,6 +356,7 @@ impl ObjectCommon {
         status: Option<Status>,
         port_43: Option<Port43>,
         entities: Option<Vec<Entity>>,
+        redacted: Option<Vec<Redacted>>,
     ) -> Self {
         Self {
             object_class_name: "entity".to_string(),
@@ -355,6 +367,7 @@ impl ObjectCommon {
             status,
             port_43,
             entities,
+            redacted,
         }
     }
 

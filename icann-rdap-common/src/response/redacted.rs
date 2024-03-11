@@ -1,13 +1,10 @@
 use std::any::TypeId;
 
-use buildstructor::Builder;
 use serde::{Deserialize, Serialize};
 
 use crate::check::Checks;
 
 use std::fmt;
-
-use super::types::Common;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Name {
@@ -58,10 +55,6 @@ pub enum Method {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Redacted {
-    #[serde(flatten)]
-    pub common: Common,
-
-    // Required
     #[serde[rename = "name"]]
     pub name: Name,
 
@@ -135,7 +128,6 @@ impl Redacted {
             path_lang: None,
             replacement_path: None,
             method: Some(Method::default()),
-            common: Common::builder().build(),
         }
     }
 
@@ -152,27 +144,6 @@ impl Redacted {
 
     pub fn get_type(&self) -> std::any::TypeId {
         TypeId::of::<Redacted>()
-    }
-}
-
-/// Represents RDAP nameserver search results.
-#[derive(Serialize, Deserialize, Builder, Clone, PartialEq, Debug, Eq)]
-pub struct RedactedResults {
-    #[serde(flatten)]
-    pub common: Common,
-
-    #[serde(rename = "redacted")]
-    pub results: Vec<Redacted>,
-}
-
-#[buildstructor::buildstructor]
-impl RedactedResults {
-    #[builder(entry = "basic")]
-    pub fn new_empty() -> Self {
-        Self {
-            common: Common::builder().build(),
-            results: Vec::new(),
-        }
     }
 }
 

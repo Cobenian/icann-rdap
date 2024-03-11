@@ -96,6 +96,7 @@ impl Entity {
                 .and_status(to_option_status(statuses))
                 .and_port_43(port_43)
                 .and_entities(entities)
+                .and_redacted(redacted)
                 .build(),
             vcard_array: contact.map(|c| c.to_vcard()),
             roles,

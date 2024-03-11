@@ -1,16 +1,9 @@
-use std::any::TypeId;
-
-use crate::md::{types::checks_to_table, FromMd};
-use icann_rdap_common::{
-    check::{CheckParams, GetSubChecks},
-    response::redacted::Redacted,
-};
+use icann_rdap_common::response::redacted::Redacted;
 
 use super::{string::StringUtil, table::MultiPartTable, MdOptions, MdParams, ToMd};
 
 impl ToMd for &[Redacted] {
     fn to_md(&self, params: MdParams) -> String {
-        let typeid = TypeId::of::<Redacted>();
         let mut md = String::new();
 
         // header
@@ -57,10 +50,10 @@ impl ToMd for &[Redacted] {
                 .and_data_ref(&"reason".to_title_case(), &reason_data);
 
             // we don't have these right now but if we put them in later we will need them
-            let check_params = CheckParams::from_md(params, typeid);
-            let mut checks = redacted.common.get_sub_checks(check_params);
-            checks.push(redacted.get_checks(check_params));
-            table = checks_to_table(checks, table, params);
+            // let check_params = CheckParams::from_md(params, typeid);
+            // let mut checks = redacted.object_common.get_sub_checks(check_params);
+            // checks.push(redacted.get_checks(check_params));
+            // table = checks_to_table(checks, table, params);
         }
 
         // render table

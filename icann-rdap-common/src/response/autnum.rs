@@ -49,6 +49,7 @@ impl Autnum {
     ///   .build();
     /// ```
     #[builder(entry = "basic")]
+
     pub fn new_autnum(
         autnum_range: std::ops::Range<u32>,
         handle: Option<String>,
@@ -79,6 +80,7 @@ impl Autnum {
                 .and_status(to_option_status(statuses))
                 .and_port_43(port_43)
                 .and_entities(entities)
+                .and_redacted(redacted)
                 .build(),
             start_autnum: Some(autnum_range.start),
             end_autnum: Some(autnum_range.end),
