@@ -165,7 +165,6 @@ impl Network {
             common: Common::level0_with_options()
                 .extension("cidr0")
                 .and_notices(notices)
-                .and_redacted(redacted)
                 .build(),
             object_common: ObjectCommon::ip_network()
                 .and_handle(handle)

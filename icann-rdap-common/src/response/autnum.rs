@@ -68,10 +68,7 @@ impl Autnum {
         let events = (!events.is_empty()).then_some(events);
         let notices = (!notices.is_empty()).then_some(notices);
         Self {
-            common: Common::builder()
-                .and_notices(notices)
-                .and_redacted(redacted)
-                .build(),
+            common: Common::builder().and_notices(notices).build(),
             object_common: ObjectCommon::autnum()
                 .and_handle(handle)
                 .and_remarks(remarks)
