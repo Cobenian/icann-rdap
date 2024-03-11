@@ -3,13 +3,14 @@ use std::any::TypeId;
 use icann_rdap_common::{
     check::{CheckParams, GetChecks, GetSubChecks},
     response::autnum::Autnum,
+    response::redacted::Redacted,
 };
 
 use super::{
     string::StringUtil,
     table::{MultiPartTable, ToMpTable},
     types::checks_to_table,
-    FromMd, MdParams, ToMd, HR,
+    FromMd, MdParams, ToMd, HR, 
 };
 
 impl ToMd for Autnum {
@@ -75,6 +76,14 @@ impl ToMd for Autnum {
                 .entities
                 .to_md(params.from_parent(typeid)),
         );
+
+        if let Some(redacted) = &self.object_common.redacted {
+            md.push_str(
+                &redacted
+                    .as_slice()
+                    .to_md(params.from_parent(typeid)),
+            );
+        }
 
         md.push('\n');
         md

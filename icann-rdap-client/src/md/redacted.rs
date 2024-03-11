@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use crate::md::{types::checks_to_table, FromMd};
+// use crate::md::{types::checks_to_table, FromMd};
 use icann_rdap_common::response::redacted::Redacted;
 
 use super::{string::StringUtil, table::MultiPartTable, MdOptions, MdParams, ToMd};
