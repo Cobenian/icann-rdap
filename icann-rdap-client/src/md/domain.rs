@@ -312,20 +312,20 @@ impl ToMd for Domain {
         for path in &pre_paths {
             println!("{}", path);
         }
-        let redacted_paths = pre_paths;
+        // let redacted_paths = pre_paths;
 
-        let domain_key_and_jsonpaths = match get_domain_kjp(&self) {
-            Ok(result) => result,
-            Err(e) => {
-                eprintln!("Error getting domain key and JSON paths: {}", e);
-                return; // or handle the error in some other way
-            }
-        };
-        println!("Domain Key and JSON Paths:");
+        // let domain_key_and_jsonpaths = match get_domain_kjp(&self) {
+        //     Ok(result) => result,
+        //     Err(e) => {
+        //         eprintln!("Error getting domain key and JSON paths: {}", e);
+        //         // return; // or handle the error in some other way
+        //     }
+        // };
+        // println!("Domain Key and JSON Paths:");
         
-        for (key, value) in &domain_key_and_jsonpaths {
-            println!("{}: {}", key, value);
-        }
+        // for (key, value) in &domain_key_and_jsonpaths {
+        //     println!("{}: {}", key, value);
+        // }
         
 
         // multipart data
