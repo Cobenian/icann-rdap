@@ -19,6 +19,15 @@ use crate::bootstrap::BootstrapType;
 use crate::error::CliError;
 use crate::request::do_request;
 
+// Awful hackery
+extern crate jsonpath_lib as jsonpath;
+use jsonpath::replace_with;
+use jsonpath_rust::{JsonPathFinder, JsonPathInst};
+use regex::Regex;
+use serde_json::{json, Value};
+use std::str::FromStr;
+
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum OutputType {
     /// Results are rendered as Markdown in the terminal using ANSI terminal capabilities.
@@ -84,7 +93,19 @@ async fn do_domain_query<'a, W: std::io::Write>(
                 source_host: &source_host,
                 source_type: SourceType::DomainRegistry,
             };
-            transactions = do_output(processing_params, &req_data, &response, write, transactions)?;
+            let replaced_rdap = replace_redacted_items(response.rdap.clone());
+            let replaced_data = ResponseData {
+                rdap: replaced_rdap,
+                // copy other fields from `response`
+                ..response.clone()
+            };
+            transactions = do_output(
+                processing_params,
+                &req_data,
+                &replaced_data,
+                write,
+                transactions,
+            )?;
             let regr_source_host;
             let regr_req_data: RequestData;
             if let Some(url) = get_related_link(&response.rdap).first() {
@@ -135,7 +156,19 @@ async fn do_inr_query<'a, W: std::io::Write>(
                 source_host: &source_host,
                 source_type: SourceType::RegionalInternetRegistry,
             };
-            transactions = do_output(processing_params, &req_data, &response, write, transactions)?;
+            let replaced_rdap = replace_redacted_items(response.rdap.clone());
+            let replaced_data = ResponseData {
+                rdap: replaced_rdap,
+                // copy other fields from `response`
+                ..response.clone()
+            };
+            transactions = do_output(
+                processing_params,
+                &req_data,
+                &replaced_data,
+                write,
+                transactions,
+            )?;
             do_final_output(processing_params, write, transactions)?;
         }
         Err(error) => return Err(error),
@@ -169,7 +202,19 @@ async fn do_basic_query<'a, W: std::io::Write>(
                     source_type: SourceType::UncategorizedRegistry,
                 }
             };
-            transactions = do_output(processing_params, &req_data, &response, write, transactions)?;
+            let replaced_rdap = replace_redacted_items(response.rdap.clone());
+            let replaced_data = ResponseData {
+                rdap: replaced_rdap,
+                // copy other fields from `response`
+                ..response.clone()
+            };
+            transactions = do_output(
+                processing_params,
+                &req_data,
+                &replaced_data,
+                write,
+                transactions,
+            )?;
             do_final_output(processing_params, write, transactions)?;
         }
         Err(error) => return Err(error),
@@ -331,4 +376,143 @@ fn get_related_link(rdap_response: &RdapResponse) -> Vec<&str> {
     } else {
         Vec::new()
     }
+}
+
+fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
+    let rdap_json = serde_json::to_string(&rdap).unwrap();
+    let mut v: Value = serde_json::from_str(&rdap_json).unwrap();
+    let jps: Vec<(String, Value, String)> = get_redacted_paths_for_object(&v, "".to_string());
+    let json_paths: Vec<String> = get_pre_and_post_paths(jps);
+
+    let to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
+    let redact_paths = find_paths_to_redact(&to_change);
+    // println!("RedactPaths: {:?}", redact_paths);
+    for path in redact_paths {
+        let json_path = &path;
+        match replace_with(v.clone(), json_path, &mut |_v| Some(json!("*REDACTED*"))) {
+            Ok(val) => v = val,
+            Err(e) => {
+                eprintln!("Error replacing value: {}", e);
+            }
+        }
+    }
+
+    // Convert the modified Value back to RdapResponse
+    let modified_rdap: RdapResponse = serde_json::from_value(v.clone()).unwrap();
+
+    // Return the modified RdapResponse
+    modified_rdap
+}
+
+fn find_paths_to_redact(checks: &[(&str, String, String)]) -> Vec<String> {
+    checks
+        .iter()
+        .filter(|(status, _, _)| matches!(*status, "EMPTY1" | "EMPTY2" | "EMPTY3" | "REPLACED1"))
+        .map(|(_, _, found_path)| found_path.clone())
+        .collect()
+}
+
+fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(&'static str, String, String)> {
+    let mut results = Vec::new();
+
+    for path in paths {
+        let path = path.trim_matches('"'); // Remove double quotes
+        match JsonPathInst::from_str(path) {
+            Ok(json_path) => {
+                // println!("json_path: {:?}", path);
+                let finder = JsonPathFinder::new(Box::new(u.clone()), Box::new(json_path));
+                let matches = finder.find_as_path();
+
+                if let Value::Array(paths) = matches {
+                    // print the length of matches
+                    // println!("\t\tmatches: {:?}", paths.len());
+                    if paths.is_empty() {
+                        results.push(("REMOVED1", path.to_string(), "".to_string()));
+                    } else {
+                        for path_value in paths {
+                            if let Value::String(found_path) = path_value {
+                                let no_value = Value::String("NO_VALUE".to_string());
+                                // Convert the JSONPath expression, example: $.['store'].['bicycle'].['color'] to the JSON Pointer /store/bicycle/color and retrieves the value <whatever> at that path in the JSON document.
+                                let re = Regex::new(r"\.\[|\]").unwrap();
+                                let json_pointer = found_path
+                                    .trim_start_matches('$')
+                                    .replace('.', "/")
+                                    .replace("['", "/")
+                                    .replace("']", "")
+                                    .replace('[', "/")
+                                    .replace(']', "")
+                                    .replace("//", "/");
+                                let json_pointer = re.replace_all(&json_pointer, "/").to_string();
+                                let value_at_path =
+                                    u.pointer(&json_pointer).unwrap_or(&no_value);
+                                if value_at_path.is_string() {
+                                    let str_value = value_at_path.as_str().unwrap_or("");
+                                    if str_value == "NO_VALUE" {
+                                        results.push(("EMPTY1", path.to_string(), found_path));
+                                    } else if str_value.is_empty() {
+                                        results.push(("EMPTY2", path.to_string(), found_path));
+                                    // } else if str_value == "" {
+                                    //     results.push(("EMPTY3", path.to_string(), found_path));
+                                    } else {
+                                        results.push(("REPLACED1", path.to_string(), found_path));
+                                    }
+                                } else if value_at_path.is_null() {
+                                    results.push(("REMOVED2", path.to_string(), found_path));
+                                } else if value_at_path.is_array() {
+                                    results.push(("REPLACED2", path.to_string(), found_path));
+                                } else if value_at_path.is_object() {
+                                    results.push(("REPLACED3", path.to_string(), found_path));
+                                } else {
+                                    results.push(("REMOVED3", path.to_string(), found_path));
+                                }
+                            } else {
+                                results.push(("REMOVED4", path.to_string(), "".to_string()));
+                            }
+                        }
+                    }
+                } else {
+                    results.push(("REMOVED5", path.to_string(), "".to_string()));
+                }
+            }
+            Err(e) => {
+                println!("Failed to parse JSON path '{}': {}", path, e);
+            }
+        }
+    }
+    results
+}
+
+fn get_redacted_paths_for_object(obj: &Value, current_path: String) -> Vec<(String, Value, String)> {
+    match obj {
+        Value::Object(map) => {
+            let mut paths = vec![];
+            for (key, value) in map {
+                let new_path = if current_path.is_empty() {
+                    format!("$.{}", key)
+                } else {
+                    format!("{}.{}", current_path, key)
+                };
+                // dbg!(&key, &value, &new_path);
+                paths.push((key.clone(), value.clone(), new_path.clone()));
+                paths.extend(get_redacted_paths_for_object(value, new_path));
+            }
+            paths
+        }
+        Value::Array(arr) => arr
+            .iter()
+            .enumerate()
+            .flat_map(|(i, value)| {
+                let new_path = format!("{}[{}]", current_path, i);
+                get_redacted_paths_for_object(value, new_path)
+            })
+            .collect(),
+        _ => vec![],
+    }
+}
+
+fn get_pre_and_post_paths(paths: Vec<(String, Value, String)>) -> Vec<String> {
+    paths.into_iter()
+        .filter(|(key, _, _)| key == "prePath" || key == "postPath")
+        .filter_map(|(_, value, _)| value.as_str().map(|s| s.to_string()))
+        .collect()
 }
