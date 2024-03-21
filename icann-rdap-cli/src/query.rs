@@ -384,10 +384,21 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     let json_paths: Vec<String> = get_pre_and_post_paths(jps);
 
     let mut to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
-    dbg!(&to_change);
+    // dbg!(&to_change);
     let removed_paths = filter_and_extract_paths(&mut to_change, "REMOVED1");
-    dbg!(&removed_paths);
-    dbg!(&to_change);
+
+    // for path in &removed_paths {
+    //     let path_inst = JsonPathInst::from_str(&path).unwrap();
+    //     let finder = JsonPathFinder::new(Box::new(v.clone()), Box::new(path_inst));
+    //     let matches = finder.find_as_path();
+    //     if let serde_json::Value::Array(arr) = matches {
+    //         for json_pointer in arr {
+    //             if let serde_json::Value::String(s) = json_pointer {
+    //                 add_field(&mut v, &s, serde_json::Value::String("REDACTED".to_string()));
+    //             }
+    //         }
+    //     }
+    // }
 
     let redact_paths = find_paths_to_redact(&to_change);
     // dbg!(&redact_paths);
@@ -410,8 +421,37 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     // Add the missing filed
     // add_field(&mut v, "$.store.bicycle.gears", serde_json::Value::String("REDACTED".to_string()));
     for path in &removed_paths {
-        add_field(&mut v, path, serde_json::Value::String("*REDACTED*".to_string()));
+        add_field(
+            &mut v,
+            path,
+            serde_json::Value::String("*REDACTED*".to_string()),
+        );
     }
+
+    // for path in &removed_paths {
+    //     // Convert the JSONPath expression to a JSON Pointer
+    //     let re = Regex::new(r"\.\[|\]").unwrap();
+    //     let json_pointer = path
+    //         .trim_start_matches('$')
+    //         .replace('.', "/")
+    //         .replace("['", "/")
+    //         .replace("']", "")
+    //         .replace('[', "/")
+    //         .replace(']', "")
+    //         .replace("//", "/");
+    //     let json_pointer = re.replace_all(&json_pointer, "/").to_string();
+    //     println!(
+    //         "AFTER JSON POINTER CLEAN : {} -> {} -> {}",
+    //         path, json_pointer, "*REDACTED*"
+    //     );
+    //     dbg!(&json_pointer);
+    //     add_field(
+    //         &mut v,
+    //         &json_pointer,
+    //         serde_json::Value::String("REDACTED".to_string()),
+    //     );
+    // }
+
     // Convert the modified Value back to RdapResponse
     let modified_rdap: RdapResponse = serde_json::from_value(v.clone()).unwrap();
 
@@ -422,7 +462,12 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
 fn find_paths_to_redact(checks: &[(&str, String, String)]) -> Vec<String> {
     checks
         .iter()
-        .filter(|(status, _, _)| matches!(*status, "EMPTY1" | "EMPTY2" | "EMPTY3" | "REPLACED1" | "REMOVED1"))
+        .filter(|(status, _, _)| {
+            matches!(
+                *status,
+                "EMPTY1" | "EMPTY2" | "EMPTY3" | "REPLACED1" | "REMOVED1"
+            )
+        })
         .map(|(_, _, found_path)| found_path.clone())
         .collect()
 }
@@ -536,13 +581,14 @@ fn get_pre_and_post_paths(paths: Vec<(String, Value, String)>) -> Vec<String> {
 }
 
 fn add_field(json: &mut Value, path: &str, new_value: Value) {
+    println!("Adding field: {} -> {}", path, new_value);
     let path = path.trim_start_matches("$."); // strip the $. prefix
     let parts: Vec<&str> = path.split('.').collect();
     let last = parts.last().unwrap();
 
     let mut current = json;
 
-    for part in &parts[0..parts.len()-1] {
+    for part in &parts[0..parts.len() - 1] {
         let array_parts: Vec<&str> = part.split('[').collect();
         if array_parts.len() > 1 {
             let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
@@ -562,7 +608,35 @@ fn add_field(json: &mut Value, path: &str, new_value: Value) {
     }
 }
 
-fn filter_and_extract_paths(to_change: &mut Vec<(&str, String, String)>, filter: &str) -> Vec<String> {
+fn add_field_json_pointer(json: &mut Value, path: &str, new_value: Value) {
+    println!("Adding field: {} -> {}", path, new_value);
+    let parts: Vec<&str> = path.split('/').collect();
+    let last = parts.last().unwrap();
+
+    let mut current = json;
+
+    for part in &parts[0..parts.len() - 1] {
+        if part.contains('[') {
+            let array_parts: Vec<&str> = part.split('[').collect();
+            let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
+            current = &mut current[array_parts[0]][index];
+        } else {
+            current = &mut current[*part];
+        }
+    }
+
+    if last.contains('[') {
+        let array_parts: Vec<&str> = last.split('[').collect();
+        let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
+        current[array_parts[0]][index] = new_value;
+    } else {
+        current[*last] = new_value;
+    }
+}
+fn filter_and_extract_paths(
+    to_change: &mut Vec<(&str, String, String)>,
+    filter: &str,
+) -> Vec<String> {
     let mut extracted_paths = vec![];
 
     to_change.retain(|(key, path, _)| {
