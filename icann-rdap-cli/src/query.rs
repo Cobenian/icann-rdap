@@ -27,7 +27,6 @@ use regex::Regex;
 use serde_json::{json, Value};
 use std::str::FromStr;
 
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum OutputType {
     /// Results are rendered as Markdown in the terminal using ANSI terminal capabilities.
@@ -386,10 +385,15 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
 
     let to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
     let redact_paths = find_paths_to_redact(&to_change);
-    // println!("RedactPaths: {:?}", redact_paths);
+
+    // there is something there, highlight it, if just "", put the REDACTED in there
     for path in redact_paths {
         let json_path = &path;
-        match replace_with(v.clone(), json_path, &mut |_v| Some(json!("*REDACTED*"))) {
+        match replace_with(v.clone(), json_path, &mut |v| match v.as_str() {
+            Some(s) if s.is_empty() => Some(json!("*REDACTED*")),
+            Some(s) => Some(json!(format!("*{}*", s))),
+            _ => Some(json!("*REDACTED*")),
+        }) {
             Ok(val) => v = val,
             Err(e) => {
                 eprintln!("Error replacing value: {}", e);
@@ -443,8 +447,7 @@ fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(&'static str, String, 
                                     .replace(']', "")
                                     .replace("//", "/");
                                 let json_pointer = re.replace_all(&json_pointer, "/").to_string();
-                                let value_at_path =
-                                    u.pointer(&json_pointer).unwrap_or(&no_value);
+                                let value_at_path = u.pointer(&json_pointer).unwrap_or(&no_value);
                                 if value_at_path.is_string() {
                                     let str_value = value_at_path.as_str().unwrap_or("");
                                     if str_value == "NO_VALUE" {
@@ -482,7 +485,10 @@ fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(&'static str, String, 
     results
 }
 
-fn get_redacted_paths_for_object(obj: &Value, current_path: String) -> Vec<(String, Value, String)> {
+fn get_redacted_paths_for_object(
+    obj: &Value,
+    current_path: String,
+) -> Vec<(String, Value, String)> {
     match obj {
         Value::Object(map) => {
             let mut paths = vec![];
@@ -511,7 +517,8 @@ fn get_redacted_paths_for_object(obj: &Value, current_path: String) -> Vec<(Stri
 }
 
 fn get_pre_and_post_paths(paths: Vec<(String, Value, String)>) -> Vec<String> {
-    paths.into_iter()
+    paths
+        .into_iter()
         .filter(|(key, _, _)| key == "prePath" || key == "postPath")
         .filter_map(|(_, value, _)| value.as_str().map(|s| s.to_string()))
         .collect()
