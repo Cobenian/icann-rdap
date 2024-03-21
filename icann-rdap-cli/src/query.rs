@@ -383,8 +383,14 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     let jps: Vec<(String, Value, String)> = get_redacted_paths_for_object(&v, "".to_string());
     let json_paths: Vec<String> = get_pre_and_post_paths(jps);
 
-    let to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
+    let mut to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
+    dbg!(&to_change);
+    let removed_paths = filter_and_extract_paths(&mut to_change, "REMOVED1");
+    dbg!(&removed_paths);
+    dbg!(&to_change);
+
     let redact_paths = find_paths_to_redact(&to_change);
+    // dbg!(&redact_paths);
 
     // there is something there, highlight it, if just "", put the REDACTED in there
     for path in redact_paths {
@@ -401,6 +407,11 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
         }
     }
 
+    // Add the missing filed
+    // add_field(&mut v, "$.store.bicycle.gears", serde_json::Value::String("REDACTED".to_string()));
+    for path in &removed_paths {
+        add_field(&mut v, path, serde_json::Value::String("*REDACTED*".to_string()));
+    }
     // Convert the modified Value back to RdapResponse
     let modified_rdap: RdapResponse = serde_json::from_value(v.clone()).unwrap();
 
@@ -411,7 +422,7 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
 fn find_paths_to_redact(checks: &[(&str, String, String)]) -> Vec<String> {
     checks
         .iter()
-        .filter(|(status, _, _)| matches!(*status, "EMPTY1" | "EMPTY2" | "EMPTY3" | "REPLACED1"))
+        .filter(|(status, _, _)| matches!(*status, "EMPTY1" | "EMPTY2" | "EMPTY3" | "REPLACED1" | "REMOVED1"))
         .map(|(_, _, found_path)| found_path.clone())
         .collect()
 }
@@ -522,4 +533,46 @@ fn get_pre_and_post_paths(paths: Vec<(String, Value, String)>) -> Vec<String> {
         .filter(|(key, _, _)| key == "prePath" || key == "postPath")
         .filter_map(|(_, value, _)| value.as_str().map(|s| s.to_string()))
         .collect()
+}
+
+fn add_field(json: &mut Value, path: &str, new_value: Value) {
+    let path = path.trim_start_matches("$."); // strip the $. prefix
+    let parts: Vec<&str> = path.split('.').collect();
+    let last = parts.last().unwrap();
+
+    let mut current = json;
+
+    for part in &parts[0..parts.len()-1] {
+        let array_parts: Vec<&str> = part.split('[').collect();
+        if array_parts.len() > 1 {
+            let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
+            current = &mut current[array_parts[0]][index];
+        } else {
+            current = &mut current[*part];
+        }
+    }
+
+    if last.contains('[') {
+        let array_parts: Vec<&str> = last.split('[').collect();
+        let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
+        current[array_parts[0]][index] = new_value;
+    } else {
+        // current[last] = new_value;
+        current[*last] = new_value;
+    }
+}
+
+fn filter_and_extract_paths(to_change: &mut Vec<(&str, String, String)>, filter: &str) -> Vec<String> {
+    let mut extracted_paths = vec![];
+
+    to_change.retain(|(key, path, _)| {
+        if key == &filter {
+            extracted_paths.push(path.clone());
+            false
+        } else {
+            true
+        }
+    });
+
+    extracted_paths
 }
