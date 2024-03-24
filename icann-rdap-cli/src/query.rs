@@ -27,6 +27,23 @@ use regex::Regex;
 use serde_json::{json, Value};
 use std::str::FromStr;
 
+
+// Define the enum
+#[derive(Debug, PartialEq)]
+pub enum ResultType {
+    Removed1,
+    Empty1,
+    Empty2,
+    Replaced1,
+    Removed2,
+    Replaced2,
+    Replaced3,
+    Removed3,
+    Removed4,
+    Removed5,
+}
+
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum OutputType {
     /// Results are rendered as Markdown in the terminal using ANSI terminal capabilities.
@@ -383,10 +400,13 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     let jps: Vec<(String, Value, String)> = get_redacted_paths_for_object(&v, "".to_string());
     let json_paths: Vec<String> = get_pre_and_post_paths(jps);
 
+    // let mut to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
+    // // dbg!(&to_change);
+    // let removed_paths = filter_and_extract_paths(&mut to_change, "REMOVED1");
     let mut to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
-    // dbg!(&to_change);
-    let removed_paths = filter_and_extract_paths(&mut to_change, "REMOVED1");
-
+    println!("TO CHANGE: {:?}", to_change);
+    let removed_paths = filter_and_extract_paths(&mut to_change, ResultType::Removed1);
+    println!("REMOVED PATHS: {:?}", removed_paths);
     // for path in &removed_paths {
     //     let path_inst = JsonPathInst::from_str(&path).unwrap();
     //     let finder = JsonPathFinder::new(Box::new(v.clone()), Box::new(path_inst));
@@ -401,7 +421,7 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     // }
 
     let redact_paths = find_paths_to_redact(&to_change);
-    // dbg!(&redact_paths);
+    dbg!(&redact_paths);
 
     // there is something there, highlight it, if just "", put the REDACTED in there
     for path in redact_paths {
@@ -421,6 +441,7 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     // Add the missing filed
     // add_field(&mut v, "$.store.bicycle.gears", serde_json::Value::String("REDACTED".to_string()));
     for path in &removed_paths {
+        dbg!(&path);
         add_field(
             &mut v,
             path,
@@ -459,40 +480,49 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     modified_rdap
 }
 
-fn find_paths_to_redact(checks: &[(&str, String, String)]) -> Vec<String> {
+// fn find_paths_to_redact(checks: &[(&str, String, String)]) -> Vec<String> {
+//     checks
+//         .iter()
+//         .filter(|(status, _, _)| {
+//             matches!(
+//                 *status,
+//                 "EMPTY1" | "EMPTY2" | "EMPTY3" | "REPLACED1" | "REMOVED1"
+//             )
+//         })
+//         .map(|(_, _, found_path)| found_path.clone())
+//         .collect()
+// }
+
+fn find_paths_to_redact(checks: &[(ResultType, String, String)]) -> Vec<String> {
     checks
         .iter()
         .filter(|(status, _, _)| {
             matches!(
                 *status,
-                "EMPTY1" | "EMPTY2" | "EMPTY3" | "REPLACED1" | "REMOVED1"
+                ResultType::Empty1 | ResultType::Empty2 | ResultType::Replaced1 | ResultType::Removed1
             )
         })
         .map(|(_, _, found_path)| found_path.clone())
         .collect()
 }
 
-fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(&'static str, String, String)> {
+fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(ResultType, String, String)> {
     let mut results = Vec::new();
 
     for path in paths {
         let path = path.trim_matches('"'); // Remove double quotes
         match JsonPathInst::from_str(path) {
             Ok(json_path) => {
-                // println!("json_path: {:?}", path);
                 let finder = JsonPathFinder::new(Box::new(u.clone()), Box::new(json_path));
                 let matches = finder.find_as_path();
 
                 if let Value::Array(paths) = matches {
-                    // print the length of matches
-                    // println!("\t\tmatches: {:?}", paths.len());
                     if paths.is_empty() {
-                        results.push(("REMOVED1", path.to_string(), "".to_string()));
+                        results.push((ResultType::Removed1, path.to_string(), "".to_string()));
                     } else {
                         for path_value in paths {
                             if let Value::String(found_path) = path_value {
                                 let no_value = Value::String("NO_VALUE".to_string());
-                                // Convert the JSONPath expression, example: $.['store'].['bicycle'].['color'] to the JSON Pointer /store/bicycle/color and retrieves the value <whatever> at that path in the JSON document.
                                 let re = Regex::new(r"\.\[|\]").unwrap();
                                 let json_pointer = found_path
                                     .trim_start_matches('$')
@@ -507,30 +537,28 @@ fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(&'static str, String, 
                                 if value_at_path.is_string() {
                                     let str_value = value_at_path.as_str().unwrap_or("");
                                     if str_value == "NO_VALUE" {
-                                        results.push(("EMPTY1", path.to_string(), found_path));
+                                        results.push((ResultType::Empty1, path.to_string(), found_path));
                                     } else if str_value.is_empty() {
-                                        results.push(("EMPTY2", path.to_string(), found_path));
-                                    // } else if str_value == "" {
-                                    //     results.push(("EMPTY3", path.to_string(), found_path));
+                                        results.push((ResultType::Empty2, path.to_string(), found_path));
                                     } else {
-                                        results.push(("REPLACED1", path.to_string(), found_path));
+                                        results.push((ResultType::Replaced1, path.to_string(), found_path));
                                     }
                                 } else if value_at_path.is_null() {
-                                    results.push(("REMOVED2", path.to_string(), found_path));
+                                    results.push((ResultType::Removed2, path.to_string(), found_path));
                                 } else if value_at_path.is_array() {
-                                    results.push(("REPLACED2", path.to_string(), found_path));
+                                    results.push((ResultType::Replaced2, path.to_string(), found_path));
                                 } else if value_at_path.is_object() {
-                                    results.push(("REPLACED3", path.to_string(), found_path));
+                                    results.push((ResultType::Replaced3, path.to_string(), found_path));
                                 } else {
-                                    results.push(("REMOVED3", path.to_string(), found_path));
+                                    results.push((ResultType::Removed3, path.to_string(), found_path));
                                 }
                             } else {
-                                results.push(("REMOVED4", path.to_string(), "".to_string()));
+                                results.push((ResultType::Removed4, path.to_string(), "".to_string()));
                             }
                         }
                     }
                 } else {
-                    results.push(("REMOVED5", path.to_string(), "".to_string()));
+                    results.push((ResultType::Removed5, path.to_string(), "".to_string()));
                 }
             }
             Err(e) => {
@@ -538,8 +566,78 @@ fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(&'static str, String, 
             }
         }
     }
+    dbg!(&results);
     results
 }
+
+// fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(&'static str, String, String)> {
+//     let mut results = Vec::new();
+
+//     for path in paths {
+//         let path = path.trim_matches('"'); // Remove double quotes
+//         match JsonPathInst::from_str(path) {
+//             Ok(json_path) => {
+//                 // println!("json_path: {:?}", path);
+//                 let finder = JsonPathFinder::new(Box::new(u.clone()), Box::new(json_path));
+//                 let matches = finder.find_as_path();
+
+//                 if let Value::Array(paths) = matches {
+//                     // print the length of matches
+//                     // println!("\t\tmatches: {:?}", paths.len());
+//                     if paths.is_empty() {
+//                         results.push(("REMOVED1", path.to_string(), "".to_string()));
+//                     } else {
+//                         for path_value in paths {
+//                             if let Value::String(found_path) = path_value {
+//                                 let no_value = Value::String("NO_VALUE".to_string());
+//                                 // Convert the JSONPath expression, example: $.['store'].['bicycle'].['color'] to the JSON Pointer /store/bicycle/color and retrieves the value <whatever> at that path in the JSON document.
+//                                 let re = Regex::new(r"\.\[|\]").unwrap();
+//                                 let json_pointer = found_path
+//                                     .trim_start_matches('$')
+//                                     .replace('.', "/")
+//                                     .replace("['", "/")
+//                                     .replace("']", "")
+//                                     .replace('[', "/")
+//                                     .replace(']', "")
+//                                     .replace("//", "/");
+//                                 let json_pointer = re.replace_all(&json_pointer, "/").to_string();
+//                                 let value_at_path = u.pointer(&json_pointer).unwrap_or(&no_value);
+//                                 if value_at_path.is_string() {
+//                                     let str_value = value_at_path.as_str().unwrap_or("");
+//                                     if str_value == "NO_VALUE" {
+//                                         results.push(("EMPTY1", path.to_string(), found_path));
+//                                     } else if str_value.is_empty() {
+//                                         results.push(("EMPTY2", path.to_string(), found_path));
+//                                     // } else if str_value == "" {
+//                                     //     results.push(("EMPTY3", path.to_string(), found_path));
+//                                     } else {
+//                                         results.push(("REPLACED1", path.to_string(), found_path));
+//                                     }
+//                                 } else if value_at_path.is_null() {
+//                                     results.push(("REMOVED2", path.to_string(), found_path));
+//                                 } else if value_at_path.is_array() {
+//                                     results.push(("REPLACED2", path.to_string(), found_path));
+//                                 } else if value_at_path.is_object() {
+//                                     results.push(("REPLACED3", path.to_string(), found_path));
+//                                 } else {
+//                                     results.push(("REMOVED3", path.to_string(), found_path));
+//                                 }
+//                             } else {
+//                                 results.push(("REMOVED4", path.to_string(), "".to_string()));
+//                             }
+//                         }
+//                     }
+//                 } else {
+//                     results.push(("REMOVED5", path.to_string(), "".to_string()));
+//                 }
+//             }
+//             Err(e) => {
+//                 println!("Failed to parse JSON path '{}': {}", path, e);
+//             }
+//         }
+//     }
+//     results
+// }
 
 fn get_redacted_paths_for_object(
     obj: &Value,
@@ -633,10 +731,32 @@ fn add_field_json_pointer(json: &mut Value, path: &str, new_value: Value) {
         current[*last] = new_value;
     }
 }
-fn filter_and_extract_paths(
-    to_change: &mut Vec<(&str, String, String)>,
-    filter: &str,
-) -> Vec<String> {
+// fn filter_and_extract_paths(
+//     to_change: &mut Vec<(&str, String, String)>,
+//     filter: &str,
+// ) -> Vec<String> {
+//     let mut extracted_paths = vec![];
+
+//     to_change.retain(|(key, path, _)| {
+//         if key == &filter {
+//             extracted_paths.push(path.clone());
+//             false
+//         } else {
+//             true
+//         }
+//     });
+
+//     extracted_paths
+// }
+
+// fn filter_and_extract_paths(checks: &mut Vec<(ResultType, String, String)>, status: ResultType) -> Vec<String> {
+//     checks
+//         .drain_filter(|(check_status, _, _)| *check_status == status)
+//         .map(|(_, _, found_path)| found_path)
+//         .collect()
+// }
+
+fn filter_and_extract_paths(to_change: &mut Vec<(ResultType, String, String)>, filter: ResultType) -> Vec<String> {
     let mut extracted_paths = vec![];
 
     to_change.retain(|(key, path, _)| {
