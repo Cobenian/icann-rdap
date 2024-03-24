@@ -410,7 +410,7 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     for path in redact_paths {
         let json_path = &path;
         match replace_with(v.clone(), json_path, &mut |v| match v.as_str() {
-            Some(s) if s.is_empty() => Some(json!("*REDACTED*")),
+            Some("") => Some(json!("*REDACTED*")),
             Some(s) => Some(json!(format!("*{}*", s))),
             _ => Some(json!("*REDACTED*")),
         }) {
@@ -587,16 +587,24 @@ fn get_pre_and_post_paths(paths: Vec<(String, Value, String)>) -> Vec<String> {
         .collect()
 }
 
+// adds a field to the JSON object
 fn add_field(json: &mut Value, path: &str, new_value: Value) {
-    println!("Adding field: {} -> {}", path, new_value);
+    // If the path contains '@' or '?(', return without modifying the JSON
+    if path.contains('@') || path.contains("?(") {
+        return;
+    }
+
+    // println!("Adding field: {} -> {}", path, new_value);
     let path = path.trim_start_matches("$."); // strip the $. prefix
     let parts: Vec<&str> = path.split('.').collect();
     let last = parts.last().unwrap();
 
+    // set the current to the incoming JSON
     let mut current = json;
 
     for part in &parts[0..parts.len() - 1] {
         let array_parts: Vec<&str> = part.split('[').collect();
+        dbg!(&array_parts);
         if array_parts.len() > 1 {
             let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
             current = &mut current[array_parts[0]][index];
@@ -605,15 +613,18 @@ fn add_field(json: &mut Value, path: &str, new_value: Value) {
         }
     }
 
+    // if it is an array then set it there
     if last.contains('[') {
         let array_parts: Vec<&str> = last.split('[').collect();
         let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
         current[array_parts[0]][index] = new_value;
     } else {
+        // otherwise set it as a field
         current[*last] = new_value;
     }
 }
 
+// Filter out the paths that we need to handle explicitly elsewhere and return them
 fn filter_and_extract_paths(
     to_change: &mut Vec<(ResultType, String, String)>,
     filter: ResultType,
