@@ -398,12 +398,11 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     let jps: Vec<(String, Value, String)> = get_redacted_paths_for_object(&v, "".to_string());
     let json_paths: Vec<String> = get_pre_and_post_paths(jps);
 
-  
     let mut to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
     // println!("TO CHANGE: {:?}", to_change);
     let removed_paths = filter_and_extract_paths(&mut to_change, ResultType::Removed1);
     // println!("REMOVED PATHS: {:?}", removed_paths);
-   
+
     let redact_paths = find_paths_to_redact(&to_change);
     // dbg!(&redact_paths);
 
