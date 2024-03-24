@@ -27,7 +27,6 @@ use regex::Regex;
 use serde_json::{json, Value};
 use std::str::FromStr;
 
-
 // Define the enum
 #[derive(Debug, PartialEq)]
 pub enum ResultType {
@@ -42,7 +41,6 @@ pub enum ResultType {
     Removed4,
     Removed5,
 }
-
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum OutputType {
@@ -499,7 +497,10 @@ fn find_paths_to_redact(checks: &[(ResultType, String, String)]) -> Vec<String> 
         .filter(|(status, _, _)| {
             matches!(
                 *status,
-                ResultType::Empty1 | ResultType::Empty2 | ResultType::Replaced1 | ResultType::Removed1
+                ResultType::Empty1
+                    | ResultType::Empty2
+                    | ResultType::Replaced1
+                    | ResultType::Removed1
             )
         })
         .map(|(_, _, found_path)| found_path.clone())
@@ -537,23 +538,55 @@ fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(ResultType, String, St
                                 if value_at_path.is_string() {
                                     let str_value = value_at_path.as_str().unwrap_or("");
                                     if str_value == "NO_VALUE" {
-                                        results.push((ResultType::Empty1, path.to_string(), found_path));
+                                        results.push((
+                                            ResultType::Empty1,
+                                            path.to_string(),
+                                            found_path,
+                                        ));
                                     } else if str_value.is_empty() {
-                                        results.push((ResultType::Empty2, path.to_string(), found_path));
+                                        results.push((
+                                            ResultType::Empty2,
+                                            path.to_string(),
+                                            found_path,
+                                        ));
                                     } else {
-                                        results.push((ResultType::Replaced1, path.to_string(), found_path));
+                                        results.push((
+                                            ResultType::Replaced1,
+                                            path.to_string(),
+                                            found_path,
+                                        ));
                                     }
                                 } else if value_at_path.is_null() {
-                                    results.push((ResultType::Removed2, path.to_string(), found_path));
+                                    results.push((
+                                        ResultType::Removed2,
+                                        path.to_string(),
+                                        found_path,
+                                    ));
                                 } else if value_at_path.is_array() {
-                                    results.push((ResultType::Replaced2, path.to_string(), found_path));
+                                    results.push((
+                                        ResultType::Replaced2,
+                                        path.to_string(),
+                                        found_path,
+                                    ));
                                 } else if value_at_path.is_object() {
-                                    results.push((ResultType::Replaced3, path.to_string(), found_path));
+                                    results.push((
+                                        ResultType::Replaced3,
+                                        path.to_string(),
+                                        found_path,
+                                    ));
                                 } else {
-                                    results.push((ResultType::Removed3, path.to_string(), found_path));
+                                    results.push((
+                                        ResultType::Removed3,
+                                        path.to_string(),
+                                        found_path,
+                                    ));
                                 }
                             } else {
-                                results.push((ResultType::Removed4, path.to_string(), "".to_string()));
+                                results.push((
+                                    ResultType::Removed4,
+                                    path.to_string(),
+                                    "".to_string(),
+                                ));
                             }
                         }
                     }
@@ -756,7 +789,10 @@ fn add_field_json_pointer(json: &mut Value, path: &str, new_value: Value) {
 //         .collect()
 // }
 
-fn filter_and_extract_paths(to_change: &mut Vec<(ResultType, String, String)>, filter: ResultType) -> Vec<String> {
+fn filter_and_extract_paths(
+    to_change: &mut Vec<(ResultType, String, String)>,
+    filter: ResultType,
+) -> Vec<String> {
     let mut extracted_paths = vec![];
 
     to_change.retain(|(key, path, _)| {
