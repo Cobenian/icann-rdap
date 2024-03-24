@@ -739,31 +739,31 @@ fn add_field(json: &mut Value, path: &str, new_value: Value) {
     }
 }
 
-fn add_field_json_pointer(json: &mut Value, path: &str, new_value: Value) {
-    println!("Adding field: {} -> {}", path, new_value);
-    let parts: Vec<&str> = path.split('/').collect();
-    let last = parts.last().unwrap();
+// fn add_field_json_pointer(json: &mut Value, path: &str, new_value: Value) {
+//     println!("Adding field: {} -> {}", path, new_value);
+//     let parts: Vec<&str> = path.split('/').collect();
+//     let last = parts.last().unwrap();
 
-    let mut current = json;
+//     let mut current = json;
 
-    for part in &parts[0..parts.len() - 1] {
-        if part.contains('[') {
-            let array_parts: Vec<&str> = part.split('[').collect();
-            let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
-            current = &mut current[array_parts[0]][index];
-        } else {
-            current = &mut current[*part];
-        }
-    }
+//     for part in &parts[0..parts.len() - 1] {
+//         if part.contains('[') {
+//             let array_parts: Vec<&str> = part.split('[').collect();
+//             let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
+//             current = &mut current[array_parts[0]][index];
+//         } else {
+//             current = &mut current[*part];
+//         }
+//     }
 
-    if last.contains('[') {
-        let array_parts: Vec<&str> = last.split('[').collect();
-        let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
-        current[array_parts[0]][index] = new_value;
-    } else {
-        current[*last] = new_value;
-    }
-}
+//     if last.contains('[') {
+//         let array_parts: Vec<&str> = last.split('[').collect();
+//         let index = usize::from_str(array_parts[1].trim_end_matches(']')).unwrap();
+//         current[array_parts[0]][index] = new_value;
+//     } else {
+//         current[*last] = new_value;
+//     }
+// }
 // fn filter_and_extract_paths(
 //     to_change: &mut Vec<(&str, String, String)>,
 //     filter: &str,
