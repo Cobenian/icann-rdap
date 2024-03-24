@@ -30,6 +30,7 @@ pub mod dirs;
 pub mod error;
 pub mod query;
 pub mod request;
+pub mod utils;
 pub mod write;
 
 const BEFORE_LONG_HELP: &str = include_str!("before_long_help.txt");
