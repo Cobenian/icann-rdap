@@ -402,9 +402,9 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     // // dbg!(&to_change);
     // let removed_paths = filter_and_extract_paths(&mut to_change, "REMOVED1");
     let mut to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
-    println!("TO CHANGE: {:?}", to_change);
+    // println!("TO CHANGE: {:?}", to_change);
     let removed_paths = filter_and_extract_paths(&mut to_change, ResultType::Removed1);
-    println!("REMOVED PATHS: {:?}", removed_paths);
+    // println!("REMOVED PATHS: {:?}", removed_paths);
     // for path in &removed_paths {
     //     let path_inst = JsonPathInst::from_str(&path).unwrap();
     //     let finder = JsonPathFinder::new(Box::new(v.clone()), Box::new(path_inst));
@@ -419,7 +419,7 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     // }
 
     let redact_paths = find_paths_to_redact(&to_change);
-    dbg!(&redact_paths);
+    // dbg!(&redact_paths);
 
     // there is something there, highlight it, if just "", put the REDACTED in there
     for path in redact_paths {
@@ -439,7 +439,7 @@ fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     // Add the missing filed
     // add_field(&mut v, "$.store.bicycle.gears", serde_json::Value::String("REDACTED".to_string()));
     for path in &removed_paths {
-        dbg!(&path);
+        // dbg!(&path);
         add_field(
             &mut v,
             path,
@@ -599,7 +599,7 @@ fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(ResultType, String, St
             }
         }
     }
-    dbg!(&results);
+    // dbg!(&results);
     results
 }
 
