@@ -2,6 +2,7 @@ use icann_rdap_common::check::traverse_checks;
 use icann_rdap_common::check::CheckClass;
 use icann_rdap_common::check::CheckParams;
 use icann_rdap_common::check::GetChecks;
+use icann_rdap_common::utils::replace_redacted_items;
 use tracing::error;
 use tracing::info;
 
@@ -18,7 +19,6 @@ use crate::bootstrap::get_base_url;
 use crate::bootstrap::BootstrapType;
 use crate::error::CliError;
 use crate::request::do_request;
-use crate::utils::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum OutputType {
