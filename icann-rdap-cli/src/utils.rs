@@ -1,4 +1,3 @@
-// Awful hackery
 extern crate jsonpath_lib as jsonpath;
 use icann_rdap_common::response::RdapResponse;
 use jsonpath::replace_with;
@@ -7,7 +6,6 @@ use regex::Regex;
 use serde_json::{json, Value};
 use std::str::FromStr;
 
-// Define the enum
 #[derive(Debug, PartialEq)]
 pub enum ResultType {
     Removed1,
@@ -21,6 +19,7 @@ pub enum ResultType {
     Removed4,
     Removed5,
 }
+
 pub fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     let rdap_json = serde_json::to_string(&rdap).unwrap();
     let mut v: Value = serde_json::from_str(&rdap_json).unwrap();
@@ -177,6 +176,7 @@ pub fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(ResultType, String
     results
 }
 
+// Checks the redaction in the object and returns the json paths that we need
 pub fn get_redacted_paths_for_object(
     obj: &Value,
     current_path: String,
@@ -208,6 +208,7 @@ pub fn get_redacted_paths_for_object(
     }
 }
 
+// pull the JSON paths from prePath and postPath
 pub fn get_pre_and_post_paths(paths: Vec<(String, Value, String)>) -> Vec<String> {
     paths
         .into_iter()
@@ -216,7 +217,7 @@ pub fn get_pre_and_post_paths(paths: Vec<(String, Value, String)>) -> Vec<String
         .collect()
 }
 
-// adds a field to the JSON object
+// Adds a field to the JSON object
 fn add_field(json: &mut Value, path: &str, new_value: Value) {
     // If the path contains '@' or '?(', return without modifying the JSON
     if path.contains('@') || path.contains("?(") {
