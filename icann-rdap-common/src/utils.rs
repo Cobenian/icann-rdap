@@ -29,17 +29,17 @@ pub fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
     let json_paths: Vec<String> = get_pre_and_post_paths(jps);
 
     let mut to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
-    println!("TO CHANGE: {:?}", to_change);
+    // println!("TO CHANGE: {:?}", to_change);
     let removed_paths = filter_and_extract_paths(&mut to_change, ResultType::Removed1);
-    println!("REMOVED PATHS: {:?}", removed_paths);
+    // println!("REMOVED PATHS: {:?}", removed_paths);
 
     let redact_paths = find_paths_to_redact(&to_change);
-    dbg!(&redact_paths);
+    // dbg!(&redact_paths);
 
     // there is something there, highlight it with *<someting>*, if it is "", put *REDACTED* in there
     for path in redact_paths {
         let json_path = &path;
-        dbg!(&json_path);
+        // dbg!(&json_path);
         match replace_with(v.clone(), json_path, &mut |v| match v.as_str() {
             Some("") => Some(json!("*REDACTED*")),
             Some(s) => Some(json!(format!("*{}*", s))),
@@ -54,7 +54,7 @@ pub fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
 
     // Add the missing filed
     for path in &removed_paths {
-        dbg!(&path);
+        // dbg!(&path);
         add_field(
             &mut v,
             path,
