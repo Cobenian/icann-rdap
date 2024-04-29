@@ -4,67 +4,75 @@ use jsonpath_rust::{JsonPathFinder, JsonPathInst};
 use regex::Regex;
 use response::RdapResponse;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use crate::response;
 
+// These are the different types of results that we can get from the JSON path checks
 #[derive(Debug, PartialEq)]
 pub enum ResultType {
-    Removed1,
-    Empty1,
-    Empty2,
-    Replaced1,
-    Removed2,
-    Replaced2,
-    Replaced3,
-    Removed3,
-    Removed4,
-    Removed5,
+    Empty1, // (*) what we found in the value paths array was a string but has no value (yes, this is a little weird, but does exist) `Redaction by Empty Value`
+    Empty2, // (*) what we found in the value paths array was a string but it is an empty string `Redaction by Empty Value`
+    Replaced1, // (*) what we found in the value paths array was a string and it does have a value `Redaction by Partial Value` and/or `Redaction by Replacement Value`
+    Replaced2, // what we found in the value paths array was _another_ array (have never found this)
+    Replaced3, // what we found in the value paths array was an object (have never found this)
+    Removed1, // (*) paths array is empty, finder.find_as_path() found nothing `Redaction by Removal`
+    Removed2, // value in paths array is null (have never found this)
+    Removed3, // fall through, value in paths array is not anything else (have never found this)
+    Removed4, // what we found was not a JSON::Value::string (have never found this)
+    Removed5, // what finder.find_as_path() returned was not a Value::Array (have never found this, could possibly be an error)
 }
 
-pub fn replace_redacted_items(rdap: RdapResponse) -> RdapResponse {
-    let rdap_json = serde_json::to_string(&rdap).unwrap();
+#[derive(Debug)]
+pub struct RedactedObject {
+    pub name: Value,
+    pub pre_path: Option<String>,
+    pub post_path: Option<String>,
+    pub path_lang: Value,
+    pub replacement_path: Option<String>,
+    pub method: Value,
+    pub reason: Value,
+    pub result_type: Option<ResultType>,
+}
+
+pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
+    let rdap_json = serde_json::to_string(&orignal_response).unwrap();
     let mut v: Value = serde_json::from_str(&rdap_json).unwrap();
-    let jps: Vec<(String, Value, String)> = get_redacted_paths_for_object(&v, "".to_string());
-    let json_paths: Vec<String> = get_pre_and_post_paths(jps);
+    let mut respone = orignal_response; // Initialize modified_rdap with the original rdap
 
-    let mut to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
-    // println!("TO CHANGE: {:?}", to_change);
-    let removed_paths = filter_and_extract_paths(&mut to_change, ResultType::Removed1);
-    // println!("REMOVED PATHS: {:?}", removed_paths);
+    if let Some(redacted_array) = v["redacted"].as_array() {
+        let result = parse_redacted_array(redacted_array);
+        dbg!(&result);
 
-    let redact_paths = find_paths_to_redact(&to_change);
-    // dbg!(&redact_paths);
+        let paths: Vec<&str> = result
+            .iter()
+            .filter_map(|item| {
+                item.pre_path
+                    .as_deref()
+                    .or_else(|| item.post_path.as_deref())
+            })
+            .collect();
 
-    // there is something there, highlight it with *<someting>*, if it is "", put *REDACTED* in there
-    for path in redact_paths {
-        let json_path = &path;
-        // dbg!(&json_path);
-        match replace_with(v.clone(), json_path, &mut |v| match v.as_str() {
-            Some("") => Some(json!("*REDACTED*")),
-            Some(s) => Some(json!(format!("*{}*", s))),
-            _ => Some(json!("*REDACTED*")),
-        }) {
-            Ok(val) => v = val,
-            Err(e) => {
-                eprintln!("Error replacing value: {}", e);
+        for path in paths {
+            let json_path = path;
+            match replace_with(v.clone(), json_path, &mut |v| match v.as_str() {
+                Some("") => Some(json!("*REDACTED*")),
+                Some(s) => Some(json!(format!("*{}*", s))),
+                _ => Some(json!("*REDACTED*")),
+            }) {
+                Ok(val) => v = val,
+                Err(e) => {
+                    eprintln!("Error replacing value: {}", e);
+                }
             }
         }
+
+        // Convert the modified Value back to RdapResponse inside the if let block
+        respone = serde_json::from_value(v).unwrap();
     }
 
-    // Add the missing filed
-    for path in &removed_paths {
-        // dbg!(&path);
-        add_field(
-            &mut v,
-            path,
-            serde_json::Value::String("*REDACTED*".to_string()),
-        );
-    }
-
-    // Now we have to convert the modified Value back to RdapResponse
-    let modified_rdap: RdapResponse = serde_json::from_value(v.clone()).unwrap();
-    modified_rdap
+    respone
 }
 
 pub fn find_paths_to_redact(checks: &[(ResultType, String, String)]) -> Vec<String> {
@@ -73,21 +81,22 @@ pub fn find_paths_to_redact(checks: &[(ResultType, String, String)]) -> Vec<Stri
         .filter(|(status, _, _)| {
             matches!(
                 *status,
-                ResultType::Empty1
-                    | ResultType::Empty2
-                    | ResultType::Replaced1
-                    | ResultType::Removed1
+                ResultType::Empty1 | ResultType::Empty2 | ResultType::Replaced1 // | ResultType::Removed1 - We no longer can do this, the edge cases make this impossible
             )
         })
         .map(|(_, _, found_path)| found_path.clone())
         .collect()
 }
 
-pub fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(ResultType, String, String)> {
+pub fn check_json_paths(u: Value, data: Vec<RedactedObject>) -> Vec<RedactedObject> {
     let mut results = Vec::new();
 
-    for path in paths {
-        let path = path.trim_matches('"'); // Remove double quotes
+    for mut item in data {
+        let path = item
+            .pre_path
+            .as_deref()
+            .unwrap_or(item.replacement_path.as_deref().unwrap())
+            .trim_matches('"'); // Remove double quotes
         match JsonPathInst::from_str(path) {
             Ok(json_path) => {
                 let finder = JsonPathFinder::new(Box::new(u.clone()), Box::new(json_path));
@@ -95,7 +104,7 @@ pub fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(ResultType, String
 
                 if let Value::Array(paths) = matches {
                     if paths.is_empty() {
-                        results.push((ResultType::Removed1, path.to_string(), "".to_string()));
+                        item.result_type = Some(ResultType::Removed1);
                     } else {
                         for path_value in paths {
                             if let Value::String(found_path) = path_value {
@@ -114,68 +123,36 @@ pub fn check_json_paths(u: Value, paths: Vec<String>) -> Vec<(ResultType, String
                                 if value_at_path.is_string() {
                                     let str_value = value_at_path.as_str().unwrap_or("");
                                     if str_value == "NO_VALUE" {
-                                        results.push((
-                                            ResultType::Empty1,
-                                            path.to_string(),
-                                            found_path,
-                                        ));
+                                        item.result_type = Some(ResultType::Empty1);
                                     } else if str_value.is_empty() {
-                                        results.push((
-                                            ResultType::Empty2,
-                                            path.to_string(),
-                                            found_path,
-                                        ));
+                                        item.result_type = Some(ResultType::Empty2);
                                     } else {
-                                        results.push((
-                                            ResultType::Replaced1,
-                                            path.to_string(),
-                                            found_path,
-                                        ));
+                                        item.result_type = Some(ResultType::Replaced1);
                                     }
                                 } else if value_at_path.is_null() {
-                                    results.push((
-                                        ResultType::Removed2,
-                                        path.to_string(),
-                                        found_path,
-                                    ));
+                                    item.result_type = Some(ResultType::Removed2);
                                 } else if value_at_path.is_array() {
-                                    results.push((
-                                        ResultType::Replaced2,
-                                        path.to_string(),
-                                        found_path,
-                                    ));
+                                    item.result_type = Some(ResultType::Replaced2);
                                 } else if value_at_path.is_object() {
-                                    results.push((
-                                        ResultType::Replaced3,
-                                        path.to_string(),
-                                        found_path,
-                                    ));
+                                    item.result_type = Some(ResultType::Replaced3);
                                 } else {
-                                    results.push((
-                                        ResultType::Removed3,
-                                        path.to_string(),
-                                        found_path,
-                                    ));
+                                    item.result_type = Some(ResultType::Removed3);
                                 }
                             } else {
-                                results.push((
-                                    ResultType::Removed4,
-                                    path.to_string(),
-                                    "".to_string(),
-                                ));
+                                item.result_type = Some(ResultType::Removed4);
                             }
                         }
                     }
                 } else {
-                    results.push((ResultType::Removed5, path.to_string(), "".to_string()));
+                    item.result_type = Some(ResultType::Removed5);
                 }
             }
             Err(e) => {
                 println!("Failed to parse JSON path '{}': {}", path, e);
             }
         }
+        results.push(item);
     }
-    // dbg!(&results);
     results
 }
 
@@ -212,12 +189,70 @@ pub fn get_redacted_paths_for_object(
 }
 
 // pull the JSON paths from prePath and postPath
+// Section 4.2 you are not allowed to have both prePath and postPath in the same object
+// so right now, prePath is first choice.
 pub fn get_pre_and_post_paths(paths: Vec<(String, Value, String)>) -> Vec<String> {
     paths
         .into_iter()
         .filter(|(key, _, _)| key == "prePath" || key == "postPath")
         .filter_map(|(_, value, _)| value.as_str().map(|s| s.to_string()))
         .collect()
+}
+
+fn parse_redacted_array(redacted_array: &Vec<Value>) -> Vec<RedactedObject> {
+    let mut result: Vec<RedactedObject> = Vec::new();
+
+    for item in redacted_array {
+        let item_map = item.as_object().unwrap();
+        let mut redacted_object = RedactedObject {
+            name: Value::String(String::from("")), // Set to empty string initially
+            pre_path: item_map
+                .get("prePath")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            path_lang: item_map
+                .get("pathLang")
+                .unwrap_or(&Value::String(String::from("")))
+                .clone(),
+            replacement_path: item_map
+                .get("replacementPath")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            post_path: item_map
+                .get("postPath")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            method: item_map
+                .get("method")
+                .unwrap_or(&Value::String(String::from("")))
+                .clone(),
+            reason: Value::String(String::from("")), // Set to empty string initially
+            result_type: None,                       // Set to None initially
+        };
+
+        // Check if the "name" field is an object
+        if let Some(Value::Object(name_map)) = item_map.get("name") {
+            // If the "name" field contains a "description" or "type" field, use it to replace the "name" field in the RedactedObject
+            if let Some(name_value) = name_map.get("description").or_else(|| name_map.get("type")) {
+                redacted_object.name = name_value.clone();
+            }
+        }
+
+        // Check if the "reason" field is an object
+        if let Some(Value::Object(reason_map)) = item_map.get("reason") {
+            // If the "reason" field contains a "description" or "type" field, use it to replace the "reason" field in the RedactedObject
+            if let Some(reason_value) = reason_map
+                .get("description")
+                .or_else(|| reason_map.get("type"))
+            {
+                redacted_object.reason = reason_value.clone();
+            }
+        }
+
+        result.push(redacted_object);
+    }
+
+    result
 }
 
 // Adds a field to the JSON object
@@ -291,45 +326,17 @@ mod tests {
           "#;
 
         // WHEN
-        let mut v: Value = serde_json::from_str(json).unwrap();
-        let jps: Vec<(String, Value, String)> = get_redacted_paths_for_object(&v, "".to_string());
-        let json_paths: Vec<String> = get_pre_and_post_paths(jps);
-        let mut to_change = check_json_paths(v.clone(), json_paths.into_iter().collect());
-        let removed_paths = filter_and_extract_paths(&mut to_change, ResultType::Removed1);
-        let redact_paths = find_paths_to_redact(&to_change);
-
-        for path in redact_paths {
-            let json_path = &path;
-            match replace_with(v.clone(), json_path, &mut |v| match v.as_str() {
-                Some("") => Some(json!("*REDACTED*")),
-                Some(s) => Some(json!(format!("*{}*", s))),
-                _ => Some(json!("*REDACTED*")),
-            }) {
-                Ok(val) => v = val,
-                Err(e) => {
-                    eprintln!("Error replacing value: {}", e);
-                }
-            }
-        }
-        for path in &removed_paths {
-            // dbg!(&path);
-            add_field(
-                &mut v,
-                path,
-                serde_json::Value::String("*REDACTED*".to_string()),
-            );
-        }
+        let rdap: RdapResponse = serde_json::from_str(json).unwrap();
+        let modified_rdap = replace_redacted_items(rdap);
 
         // THEN
-        // comparse the json with the expected json
+        // compare the json with the expected json
         let expected_json = r#"
-          {"rdapConformance":["rdap_level_0","redacted"],"objectClassName":"domain","unicodeName": "*REDACTED*", "handle":"*XXX*","ldhName":"example1.com","links":[{"value":"https://example.com/rdap/domain/example1.com","rel":"self","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"},{"value":"https://example.com/rdap/domain/example1.com","rel":"related","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"}],"redacted":[{"name":{"description":"Registry Domain ID"},"prePath":"$.handle","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}},{"name":{"description":"Registry Domain ID"},"prePath":"$.unicodeName","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}}]}
+          {"rdapConformance":["rdap_level_0","redacted"],"objectClassName":"domain","handle":"*XXX*","ldhName":"example1.com","links":[{"value":"https://example.com/rdap/domain/example1.com","rel":"self","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"},{"value":"https://example.com/rdap/domain/example1.com","rel":"related","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"}],"redacted":[{"name":{"description":"Registry Domain ID"},"prePath":"$.handle","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}},{"name":{"description":"Registry Domain ID"},"prePath":"$.unicodeName","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}}]}
           "#;
 
-        assert_eq!(
-            v,
-            serde_json::from_str::<serde_json::Value>(expected_json).unwrap()
-        );
-        // assert_eq!(v, serde_json::from_str(expected_json).unwrap());
+        let expected_rdap: RdapResponse = serde_json::from_str(expected_json).unwrap();
+
+        assert_eq!(modified_rdap, expected_rdap);
     }
 }
