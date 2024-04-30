@@ -46,9 +46,10 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
         let result = parse_redacted_array(redacted_array);
         dbg!(&result);
 
-        // Get the paths that we need to redact, the pre and post paths
+        // Get the paths that we need to redact, the pre and post paths but not the replacementValue ones
         let pre_and_post_paths: Vec<&str> = result
             .iter()
+            .filter(|item| item.method != Value::String("replacementValue".to_string()))
             .filter_map(|item| {
                 item.pre_path
                     .as_deref()
@@ -72,6 +73,15 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
         }
 
         // find all the replacementValues and replace them with the value in the replacementPath
+        let _replacement_value_paths: Vec<&str> = result
+            .iter()
+            .filter(|item| item.method == Value::String("replacementValue".to_string()))
+            .filter_map(|item| {
+                item.pre_path
+                    .as_deref()
+                    .or_else(|| item.post_path.as_deref())
+            })
+            .collect();
 
         // Convert the modified Value back to RdapResponse
         respone = serde_json::from_value(v).unwrap();
