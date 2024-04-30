@@ -36,6 +36,7 @@ pub struct RedactedObject {
     pub result_type: Option<ResultType>,
 }
 
+// this is our public entry point
 pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
     let rdap_json = serde_json::to_string(&orignal_response).unwrap();
     let mut v: Value = serde_json::from_str(&rdap_json).unwrap();
@@ -60,6 +61,9 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
         // foreach of those, replace them with the *REDACTED* value
         for path in pre_and_post_paths {
             let json_path = path;
+            // dbg!(&json_path);
+            // remove the $ from json_path
+            // let json_path = json_path.trim_start_matches('$');
             match replace_with(v.clone(), json_path, &mut |v| match v.as_str() {
                 Some("") => Some(json!("*REDACTED*")),
                 Some(s) => Some(json!(format!("*{}*", s))),
@@ -207,13 +211,13 @@ pub fn get_redacted_paths_for_object(
 // pull the JSON paths from prePath and postPath
 // Section 4.2 you are not allowed to have both prePath and postPath in the same object
 // so right now, prePath is first choice.
-pub fn get_pre_and_post_paths(paths: Vec<(String, Value, String)>) -> Vec<String> {
-    paths
-        .into_iter()
-        .filter(|(key, _, _)| key == "prePath" || key == "postPath")
-        .filter_map(|(_, value, _)| value.as_str().map(|s| s.to_string()))
-        .collect()
-}
+// pub fn get_pre_and_post_paths(paths: Vec<(String, Value, String)>) -> Vec<String> {
+//     paths
+//         .into_iter()
+//         .filter(|(key, _, _)| key == "prePath" || key == "postPath")
+//         .filter_map(|(_, value, _)| value.as_str().map(|s| s.to_string()))
+//         .collect()
+// }
 
 fn parse_redacted_array(redacted_array: &Vec<Value>) -> Vec<RedactedObject> {
     let mut result: Vec<RedactedObject> = Vec::new();
