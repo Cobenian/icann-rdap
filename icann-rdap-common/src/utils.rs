@@ -39,13 +39,15 @@ pub struct RedactedObject {
 pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
     let rdap_json = serde_json::to_string(&orignal_response).unwrap();
     let mut v: Value = serde_json::from_str(&rdap_json).unwrap();
-    let mut respone = orignal_response; // Initialize modified_rdap with the original rdap
+    let mut respone = orignal_response; // Initialize with the original response
 
+    // if there are any redactions we need to do some modifications
     if let Some(redacted_array) = v["redacted"].as_array() {
         let result = parse_redacted_array(redacted_array);
         dbg!(&result);
 
-        let paths: Vec<&str> = result
+        // Get the paths that we need to redact, the pre and post paths
+        let pre_and_post_paths: Vec<&str> = result
             .iter()
             .filter_map(|item| {
                 item.pre_path
@@ -54,7 +56,8 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
             })
             .collect();
 
-        for path in paths {
+        // foreach of those, replace them with the *REDACTED* value
+        for path in pre_and_post_paths {
             let json_path = path;
             match replace_with(v.clone(), json_path, &mut |v| match v.as_str() {
                 Some("") => Some(json!("*REDACTED*")),
@@ -68,10 +71,13 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
             }
         }
 
-        // Convert the modified Value back to RdapResponse inside the if let block
+        // find all the replacementValues and replace them with the value in the replacementPath
+
+        // Convert the modified Value back to RdapResponse
         respone = serde_json::from_value(v).unwrap();
     }
 
+    // Return the response
     respone
 }
 
