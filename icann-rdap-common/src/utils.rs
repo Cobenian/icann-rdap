@@ -29,12 +29,23 @@ pub struct RedactedObject {
     pub pre_path: Option<String>,
     pub post_path: Option<String>,
     pub final_path: Option<String>,
-    pub final_path_exists: bool,
+    pub do_final_path_subsitution: bool,
     pub path_lang: Value,
     pub replacement_path: Option<String>,
     pub method: Value,
     pub reason: Value,
     pub result_type: Option<ResultType>,
+    pub redaction_type: Option<RedactionType>,
+}
+
+// This isn't just based on the string type that is in the redaction method, but also based on the result type above
+#[derive(Debug, PartialEq, Clone)]
+pub enum RedactionType {
+    EmptyValue,
+    PartialValue,
+    ReplacementValue,
+    Removal,
+    Unknown,
 }
 
 // this is our public entry point
@@ -50,8 +61,8 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
 
         for redacted_object in result {
             println!("Processing redacted_object...");
-            if redacted_object.final_path_exists {
-                println!("final_path_exists is true");
+            if redacted_object.do_final_path_subsitution {
+                println!("do_final_path_subsitution is true");
                 if let Some(final_path) = redacted_object.final_path {
                     println!("Found final_path: {}", final_path);
                     dbg!(&final_path);
@@ -109,7 +120,7 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
                     }
                 }
             } else {
-                println!("final_path_exists is false");
+                println!("do_final_path_subsitution is false");
             }
         }
         // find all the replacementValues and replace them with the value in the replacementPath
@@ -122,7 +133,6 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
 }
 
 // everything else below this line is internal to the module
-
 fn parse_redacted_array(v: &Value, redacted_array: &Vec<Value>) -> Vec<RedactedObject> {
     let mut result: Vec<RedactedObject> = Vec::new();
 
@@ -143,7 +153,7 @@ fn parse_redacted_array(v: &Value, redacted_array: &Vec<Value>) -> Vec<RedactedO
             pre_path: pre_path,
             post_path: post_path,
             final_path: final_path.clone(),
-            final_path_exists: false, // Set to false initially
+            do_final_path_subsitution: false, // Set to false initially
             path_lang: item_map
                 .get("pathLang")
                 .unwrap_or(&Value::String(String::from("")))
@@ -158,6 +168,7 @@ fn parse_redacted_array(v: &Value, redacted_array: &Vec<Value>) -> Vec<RedactedO
                 .clone(),
             reason: Value::String(String::from("")), // Set to empty string initially
             result_type: None,                       // Set to None initially
+            redaction_type: None,                    // Set to None initially
         };
 
         // Check if the "name" field is an object
@@ -179,19 +190,83 @@ fn parse_redacted_array(v: &Value, redacted_array: &Vec<Value>) -> Vec<RedactedO
             }
         }
 
-        // here is our sanity checking
-        if let Some(_final_path_str) = final_path {
-            redacted_object = set_result_type_from_json_path(v.clone(), redacted_object);
-            match redacted_object.result_type {
-                // if you are changing what is considered a "valid" path, you need to change this
-                Some(ResultType::Empty1)
-                | Some(ResultType::Empty2)
-                | Some(ResultType::Replaced1) => {
-                    redacted_object.final_path_exists = true;
+        // this has to happen here, before everything else
+        redacted_object = set_result_type_from_json_path(v.clone(), &mut redacted_object);
+
+        // set the redaction type
+        if let Some(method) = redacted_object.method.as_str() {
+            // we don't just assume you are what you say you are...
+            match method {
+                "emptyValue" => {
+                    if let Some(ref result_type) = redacted_object.result_type {
+                        if matches!(result_type, ResultType::Empty1 | ResultType::Empty2) {
+                            redacted_object.redaction_type = Some(RedactionType::EmptyValue);
+                        } else {
+                            redacted_object.redaction_type = Some(RedactionType::Unknown);
+                        }
+                    } else {
+                        redacted_object.redaction_type = Some(RedactionType::Unknown);
+                    }
+                }
+                "partialValue" => {
+                    if let Some(ref result_type) = redacted_object.result_type {
+                        if matches!(result_type, ResultType::Replaced1) {
+                            redacted_object.redaction_type = Some(RedactionType::PartialValue);
+                        } else {
+                            redacted_object.redaction_type = Some(RedactionType::Unknown);
+                        }
+                    } else {
+                        redacted_object.redaction_type = Some(RedactionType::Unknown);
+                    }
+                }
+                "replacementValue" => {
+                    if let Some(ref result_type) = redacted_object.result_type {
+                        if matches!(result_type, ResultType::Replaced1) {
+                            if redacted_object.pre_path.is_some()
+                                && !redacted_object.pre_path.as_ref().unwrap().is_empty()
+                                || redacted_object.post_path.is_some()
+                                    && !redacted_object.post_path.as_ref().unwrap().is_empty()
+                            {
+                                redacted_object.redaction_type =
+                                    Some(RedactionType::ReplacementValue);
+                            } else {
+                                redacted_object.redaction_type = Some(RedactionType::Unknown);
+                            }
+                        } else {
+                            redacted_object.redaction_type = Some(RedactionType::Unknown);
+                        }
+                    } else {
+                        redacted_object.redaction_type = Some(RedactionType::Unknown);
+                    }
+                }
+                "removal" => {
+                    if let Some(ref result_type) = redacted_object.result_type {
+                        if matches!(result_type, ResultType::Removed1) {
+                            redacted_object.redaction_type = Some(RedactionType::Removal);
+                        } else {
+                            redacted_object.redaction_type = Some(RedactionType::Unknown);
+                        }
+                    } else {
+                        redacted_object.redaction_type = Some(RedactionType::Unknown);
+                    }
                 }
                 _ => {
-                    redacted_object.final_path_exists = false;
+                    redacted_object.redaction_type = Some(RedactionType::Unknown);
                 }
+            }
+        } else {
+            // we should never say never
+            redacted_object.redaction_type = Some(RedactionType::Unknown);
+        }
+
+        // now we need to check if we need to do the final path substitution
+        match redacted_object.redaction_type {
+            // if you are changing what your going to subsitute on, you need to change this.
+            Some(RedactionType::EmptyValue) | Some(RedactionType::PartialValue) => {
+                redacted_object.do_final_path_subsitution = true;
+            }
+            _ => {
+                redacted_object.do_final_path_subsitution = false;
             }
         }
 
@@ -201,7 +276,7 @@ fn parse_redacted_array(v: &Value, redacted_array: &Vec<Value>) -> Vec<RedactedO
     result
 }
 
-pub fn set_result_type_from_json_path(u: Value, mut item: RedactedObject) -> RedactedObject {
+pub fn set_result_type_from_json_path(u: Value, item: &mut RedactedObject) -> RedactedObject {
     if let Some(path) = item.final_path.as_deref() {
         let path = path.trim_matches('"'); // Remove double quotes
         match JsonPathInst::from_str(path) {
@@ -260,7 +335,7 @@ pub fn set_result_type_from_json_path(u: Value, mut item: RedactedObject) -> Red
             }
         }
     }
-    item
+    item.clone()
 }
 
 pub fn check_valid_json_path(u: Value, path: &str) -> bool {
@@ -481,15 +556,13 @@ pub fn filter_and_extract_paths(
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
-    use serde_json::Value;
-
     use crate::utils::*;
 
     #[test]
     fn GIVEN_redaction_in_json_WHEN_added_correctly_THEN_success() {
         // GIVEN
         let json = r#"
-          {"rdapConformance":["rdap_level_0","redacted"],"objectClassName":"domain","handle":"XXX","ldhName":"example1.com","links":[{"value":"https://example.com/rdap/domain/example1.com","rel":"self","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"},{"value":"https://example.com/rdap/domain/example1.com","rel":"related","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"}],"redacted":[{"name":{"description":"Registry Domain ID"},"prePath":"$.handle","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}},{"name":{"description":"Registry Domain ID"},"prePath":"$.unicodeName","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}}]}
+          {"rdapConformance":["rdap_level_0","redacted"],"objectClassName":"domain","handle":"XXX","ldhName":"example1.com","links":[{"value":"https://example.com/rdap/domain/example1.com","rel":"self","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"},{"value":"https://example.com/rdap/domain/example1.com","rel":"related","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"}],"redacted":[{"name":{"description":"Registry Domain ID"},"prePath":"$.handle","pathLang":"jsonpath","method":"partialValue","reason":{"type":"Server policy"}},{"name":{"description":"Registry Domain ID"},"prePath":"$.unicodeName","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}}]}
           "#;
 
         // WHEN
@@ -499,7 +572,7 @@ mod tests {
         // THEN
         // compare the json with the expected json
         let expected_json = r#"
-          {"rdapConformance":["rdap_level_0","redacted"],"objectClassName":"domain","handle":"*XXX*","ldhName":"example1.com","links":[{"value":"https://example.com/rdap/domain/example1.com","rel":"self","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"},{"value":"https://example.com/rdap/domain/example1.com","rel":"related","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"}],"redacted":[{"name":{"description":"Registry Domain ID"},"prePath":"$.handle","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}},{"name":{"description":"Registry Domain ID"},"prePath":"$.unicodeName","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}}]}
+          {"rdapConformance":["rdap_level_0","redacted"],"objectClassName":"domain","handle":"*XXX*","ldhName":"example1.com","links":[{"value":"https://example.com/rdap/domain/example1.com","rel":"self","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"},{"value":"https://example.com/rdap/domain/example1.com","rel":"related","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"}],"redacted":[{"name":{"description":"Registry Domain ID"},"prePath":"$.handle","pathLang":"jsonpath","method":"partialValue","reason":{"type":"Server policy"}},{"name":{"description":"Registry Domain ID"},"prePath":"$.unicodeName","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}}]}
           "#;
 
         let expected_rdap: RdapResponse = serde_json::from_str(expected_json).unwrap();
