@@ -50,14 +50,11 @@ pub enum RedactionType {
     Unknown,
 }
 
-// this is our public entry point
-pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
-    let rdap_json = serde_json::to_string(&orignal_response).unwrap();
-    let mut v: Value = serde_json::from_str(&rdap_json).unwrap();
-    let mut response = orignal_response; // Initialize with the original response
-
-    // if there are any redactions we need to do some modifications
-    if let Some(redacted_array) = v["redacted"].as_array() {
+fn parse_redacted_json(
+    v: &mut serde_json::Value,
+    redacted_array_option: Option<&Vec<serde_json::Value>>,
+) {
+    if let Some(redacted_array) = redacted_array_option {
         let redactions = parse_redacted_array(&v, redacted_array);
         // dbg!(&result);
         for redacted_object in redactions {
@@ -127,11 +124,11 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
                                         Some(json!(final_replacement_value))
                                     }) {
                                         Ok(new_v) => {
-                                            v = new_v;
+                                            *v = new_v;
                                             dbg!("Replaced value at replacement_path");
                                         }
                                         Err(e) => {
-                                            dbg!("Failed to replace value at replacement_path:");
+                                            dbg!("Failed to replace value at replacement_path: ");
                                             dbg!(e);
                                         }
                                     } // end match replace_with
@@ -197,7 +194,7 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
                                     // Now we check it
                                     match replaced_json {
                                         Ok(new_v) => {
-                                            v = new_v;
+                                            *v = new_v;
                                             dbg!("Replaced value at empty or partial path");
                                         }
 
@@ -220,9 +217,25 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
                 } // end !redacted_object.final_path.is_empty()
             } // end if we are doing final_path_subsitution or not
         } // end for each redacted_object
+          // Rest of your code...
+    } else {
+        // Fall through...
+    }
+}
+
+// this is our public entry point
+pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
+    let rdap_json = serde_json::to_string(&orignal_response).unwrap();
+    let mut v: Value = serde_json::from_str(&rdap_json).unwrap();
+    let mut response = orignal_response; // Initialize with the original response
+    let redacted_array_option = v["redacted"].as_array().cloned();
+
+    // if there are any redactions we need to do some modifications
+    if let Some(ref redacted_array) = redacted_array_option {
+        parse_redacted_json(&mut v, Some(redacted_array));
         response = serde_json::from_value(v).unwrap();
     } // END if there are redactions
-      // Return the response
+
     response
 }
 
@@ -542,26 +555,41 @@ pub fn check_valid_json_path(u: Value, path: &str) -> bool {
 #[allow(non_snake_case)]
 mod tests {
     use crate::utils::*;
+    use serde_json::Value;
+    use std::error::Error;
+    use std::fs::File;
+    use std::io::Read;
+
+    fn process_redacted_file(file_path: &str) -> Result<String, Box<dyn Error>> {
+        let mut file = File::open(file_path)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+
+        // this has to be setup very specifically, just like replace_redacted_items is setup.
+        let mut v: Value = serde_json::from_str(&contents)?;
+        let redacted_array_option = v["redacted"].as_array().cloned();
+        // we are testing parse_redacted_json here -- just the JSON transforms
+        parse_redacted_json(&mut v, redacted_array_option.as_ref());
+
+        let pretty_json = serde_json::to_string_pretty(&v)?;
+        println!("{}", pretty_json);
+        Ok(pretty_json)
+    }
 
     #[test]
-    fn GIVEN_redaction_in_json_WHEN_added_correctly_THEN_success() {
-        // GIVEN
-        let json = r#"
-          {"rdapConformance":["rdap_level_0","redacted"],"objectClassName":"domain","handle":"XXX","ldhName":"example1.com","links":[{"value":"https://example.com/rdap/domain/example1.com","rel":"self","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"},{"value":"https://example.com/rdap/domain/example1.com","rel":"related","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"}],"redacted":[{"name":{"description":"Registry Domain ID"},"prePath":"$.handle","pathLang":"jsonpath","method":"partialValue","reason":{"type":"Server policy"}},{"name":{"description":"Registry Domain ID"},"prePath":"$.unicodeName","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}}]}
-          "#;
+    fn test_process_empty_value() {
+        let expected_output =
+            std::fs::read_to_string("src/test_files/example-1_empty_value-expected.json").unwrap();
+        let output = process_redacted_file("src/test_files/example-1_empty_value.json").unwrap();
+        assert_eq!(output, expected_output);
+    }
 
-        // WHEN
-        let rdap: RdapResponse = serde_json::from_str(json).unwrap();
-        let modified_rdap = replace_redacted_items(rdap);
-
-        // THEN
-        // compare the json with the expected json
-        let expected_json = r#"
-          {"rdapConformance":["rdap_level_0","redacted"],"objectClassName":"domain","handle":"*XXX*","ldhName":"example1.com","links":[{"value":"https://example.com/rdap/domain/example1.com","rel":"self","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"},{"value":"https://example.com/rdap/domain/example1.com","rel":"related","href":"https://example.com/rdap/domain/example1.com","type":"application/rdap+json"}],"redacted":[{"name":{"description":"Registry Domain ID"},"prePath":"$.handle","pathLang":"jsonpath","method":"partialValue","reason":{"type":"Server policy"}},{"name":{"description":"Registry Domain ID"},"prePath":"$.unicodeName","pathLang":"jsonpath","method":"removal","reason":{"type":"Server policy"}}]}
-          "#;
-
-        let expected_rdap: RdapResponse = serde_json::from_str(expected_json).unwrap();
-
-        assert_eq!(modified_rdap, expected_rdap);
+    #[test]
+    fn test_process_partial_value() {
+        let expected_output =
+            std::fs::read_to_string("src/test_files/example-2_partial_value-expected.json")
+                .unwrap();
+        let output = process_redacted_file("src/test_files/example-2_partial_value.json").unwrap();
+        assert_eq!(output, expected_output);
     }
 }
