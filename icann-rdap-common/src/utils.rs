@@ -51,11 +51,11 @@ pub enum RedactionType {
 }
 
 fn parse_redacted_json(
-    v: &mut serde_json::Value,
+    rdap_json_response: &mut serde_json::Value,
     redacted_array_option: Option<&Vec<serde_json::Value>>,
 ) {
     if let Some(redacted_array) = redacted_array_option {
-        let redactions = parse_redacted_array(v, redacted_array);
+        let redactions = parse_redacted_array(rdap_json_response, redacted_array);
         // dbg!(&result);
         for redacted_object in redactions {
             dbg!("Processing redacted_object...");
@@ -97,7 +97,7 @@ fn parse_redacted_json(
 
                                     dbg!(&replacement_path_str);
 
-                                    let final_replacement_value = match v
+                                    let final_replacement_value = match rdap_json_response
                                         .pointer(&replacement_path_str)
                                     {
                                         Some(value) => {
@@ -120,11 +120,13 @@ fn parse_redacted_json(
 
                                     // With the redaction I am saying that I am replacing the value at the prePath with the value from the replacementPath.
                                     // So, in essence, it is a copy. replacementPath = source, prePath = target.
-                                    match replace_with(v.clone(), final_path, &mut |_| {
-                                        Some(json!(final_replacement_value))
-                                    }) {
+                                    match replace_with(
+                                        rdap_json_response.clone(),
+                                        final_path,
+                                        &mut |_| Some(json!(final_replacement_value)),
+                                    ) {
                                         Ok(new_v) => {
-                                            *v = new_v;
+                                            *rdap_json_response = new_v;
                                             dbg!("Replaced value at replacement_path");
                                         }
                                         Err(e) => {
@@ -141,20 +143,23 @@ fn parse_redacted_json(
                                     let final_path_str = convert_to_json_pointer_path(final_path);
 
                                     // You may want to replace with a different value for these types
-                                    let final_value = match v.pointer(&final_path_str) {
-                                        Some(value) => {
-                                            dbg!("Pointer Found value: {:?}", value);
-                                            value.clone()
-                                        }
-                                        None => {
-                                            dbg!("CONTINUE b/c final_path not found");
-                                            continue;
-                                        }
-                                    };
+                                    let final_value =
+                                        match rdap_json_response.pointer(&final_path_str) {
+                                            Some(value) => {
+                                                dbg!("Pointer Found value: {:?}", value);
+                                                value.clone()
+                                            }
+                                            None => {
+                                                dbg!("CONTINUE b/c final_path not found");
+                                                continue;
+                                            }
+                                        };
 
                                     dbg!("Final path: {:?}", final_path);
-                                    let replaced_json =
-                                        replace_with(v.clone(), final_path, &mut |x| {
+                                    let replaced_json = replace_with(
+                                        rdap_json_response.clone(),
+                                        final_path,
+                                        &mut |x| {
                                             dbg!("Replacing value...");
                                             if x.is_string() {
                                                 match x.as_str() {
@@ -190,11 +195,12 @@ fn parse_redacted_json(
                                                 dbg!("Value is not a string");
                                                 Some(final_value.clone())
                                             }
-                                        });
+                                        },
+                                    );
                                     // Now we check it
                                     match replaced_json {
                                         Ok(new_v) => {
-                                            *v = new_v;
+                                            *rdap_json_response = new_v;
                                             dbg!("Replaced value at empty or partial path");
                                         }
 
@@ -226,14 +232,14 @@ fn parse_redacted_json(
 // this is our public entry point
 pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
     let rdap_json = serde_json::to_string(&orignal_response).unwrap();
-    let mut v: Value = serde_json::from_str(&rdap_json).unwrap();
+    let mut rdap_json_response: Value = serde_json::from_str(&rdap_json).unwrap();
     let mut response = orignal_response; // Initialize with the original response
-    let redacted_array_option = v["redacted"].as_array().cloned();
+    let redacted_array_option = rdap_json_response["redacted"].as_array().cloned();
 
     // if there are any redactions we need to do some modifications
     if let Some(ref redacted_array) = redacted_array_option {
-        parse_redacted_json(&mut v, Some(redacted_array));
-        response = serde_json::from_value(v).unwrap();
+        parse_redacted_json(&mut rdap_json_response, Some(redacted_array));
+        response = serde_json::from_value(rdap_json_response).unwrap();
     } // END if there are redactions
 
     response
@@ -254,7 +260,10 @@ fn convert_to_json_pointer_path(path: &str) -> String {
 }
 
 // everything else below this line is internal to the module
-fn parse_redacted_array(v: &Value, redacted_array: &Vec<Value>) -> Vec<RedactedObject> {
+fn parse_redacted_array(
+    rdap_json_response: &Value,
+    redacted_array: &Vec<Value>,
+) -> Vec<RedactedObject> {
     let mut result: Vec<RedactedObject> = Vec::new();
 
     for item in redacted_array {
@@ -314,7 +323,8 @@ fn parse_redacted_array(v: &Value, redacted_array: &Vec<Value>) -> Vec<RedactedO
         }
 
         // this has to happen here, before everything else
-        redacted_object = set_result_type_from_json_path(v.clone(), &mut redacted_object);
+        redacted_object =
+            set_result_type_from_json_path(rdap_json_response.clone(), &mut redacted_object);
 
         // set the redaction type
         if let Some(method) = redacted_object.method.as_str() {
@@ -566,12 +576,12 @@ mod tests {
         file.read_to_string(&mut contents)?;
 
         // this has to be setup very specifically, just like replace_redacted_items is setup.
-        let mut v: Value = serde_json::from_str(&contents)?;
-        let redacted_array_option = v["redacted"].as_array().cloned();
+        let mut rdap_json_response: Value = serde_json::from_str(&contents)?;
+        let redacted_array_option = rdap_json_response["redacted"].as_array().cloned();
         // we are testing parse_redacted_json here -- just the JSON transforms
-        parse_redacted_json(&mut v, redacted_array_option.as_ref());
+        parse_redacted_json(&mut rdap_json_response, redacted_array_option.as_ref());
 
-        let pretty_json = serde_json::to_string_pretty(&v)?;
+        let pretty_json = serde_json::to_string_pretty(&rdap_json_response)?;
         println!("{}", pretty_json);
         Ok(pretty_json)
     }
