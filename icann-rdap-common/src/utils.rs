@@ -25,19 +25,19 @@ pub enum ResultType {
 
 #[derive(Debug, Clone)]
 pub struct RedactedObject {
-    pub name: Value,
-    pub path_index_count: i32,
-    pub pre_path: Option<String>,
-    pub post_path: Option<String>,
-    pub original_path: Option<String>,
-    pub final_path: Vec<Option<String>>,
-    pub do_final_path_subsitution: bool,
-    pub path_lang: Value,
+    pub name: Value,                     // Get the description's name or type
+    pub path_index_count: i32,           // how many paths does the json resolve to?
+    pub pre_path: Option<String>,        // the prePath
+    pub post_path: Option<String>,       // the postPath
+    pub original_path: Option<String>,   // the original path that was put into the redaction
+    pub final_path: Vec<Option<String>>, // a vector of the paths where we put a partialValue or emptyValue
+    pub do_final_path_subsitution: bool, // if we are modifying anything or not
+    pub path_lang: Value, // the path_lang they put in, these may be used in the future
     pub replacement_path: Option<String>,
-    pub method: Value,
-    pub reason: Value,
-    pub result_type: Vec<Option<ResultType>>,
-    pub redaction_type: Option<RedactionType>,
+    pub method: Value,                         // the method they are using
+    pub reason: Value,                         // the reason
+    pub result_type: Vec<Option<ResultType>>,  // a vec of our own internal Results we found
+    pub redaction_type: Option<RedactionType>, // a vec of redactions type that match against our result type
 }
 
 // This isn't just based on the string type that is in the redaction method, but also based on the result type above
@@ -55,7 +55,7 @@ fn parse_redacted_json(
     redacted_array_option: Option<&Vec<serde_json::Value>>,
 ) {
     if let Some(redacted_array) = redacted_array_option {
-        let redactions = parse_redacted_array(&v, redacted_array);
+        let redactions = parse_redacted_array(v, redacted_array);
         // dbg!(&result);
         for redacted_object in redactions {
             dbg!("Processing redacted_object...");
@@ -590,6 +590,20 @@ mod tests {
             std::fs::read_to_string("src/test_files/example-2_partial_value-expected.json")
                 .unwrap();
         let output = process_redacted_file("src/test_files/example-2_partial_value.json").unwrap();
+        assert_eq!(output, expected_output);
+    }
+
+    #[test]
+    fn test_process_dont_replace_number() {
+        let expected_output = std::fs::read_to_string(
+            "src/test_files/example-3-dont_replace_redaction_of_a_number.json",
+        )
+        .unwrap();
+        // we don't need an expected for this one, it should remain unchanged
+        let output = process_redacted_file(
+            "src/test_files/example-3-dont_replace_redaction_of_a_number.json",
+        )
+        .unwrap();
         assert_eq!(output, expected_output);
     }
 }
