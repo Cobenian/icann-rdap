@@ -7,7 +7,7 @@ use tracing::error;
 use tracing::info;
 
 use icann_rdap_client::{
-    md::{MdOptions, MdParams, ToMd},
+    md::{redacted::replace_redacted_items, MdOptions, MdParams, ToMd},
     query::{qtype::QueryType, request::ResponseData},
     request::{RequestData, RequestResponse, RequestResponses, SourceType},
 };
