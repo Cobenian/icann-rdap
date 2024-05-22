@@ -22,34 +22,12 @@ impl ToMd for Domain {
         md.push_str(&self.common.to_md(params.from_parent(typeid)));
 
         // header
-        // let header_text = if let Some(unicode_name) = &self.unicode_name {
-        //     format!("Domain {unicode_name}")
-        // } else if let Some(ldh_name) = &self.ldh_name {
-        //     format!("Domain {ldh_name}")
-        // } else if let Some(handle) = &self.object_common.handle {
-        //     format!("Domain {handle}")
-        // } else {
-        //     "Domain".to_string()
-        // };
-        // header
         let header_text = if let Some(unicode_name) = &self.unicode_name {
-            if unicode_name != "*REDACTED*" {
-                format!("Domain {}", unicode_name)
-            } else {
-                "Domain".to_string()
-            }
+            format!("Domain {unicode_name}")
         } else if let Some(ldh_name) = &self.ldh_name {
-            if ldh_name != "*REDACTED*" {
-                format!("Domain {}", ldh_name)
-            } else {
-                "Domain".to_string()
-            }
+            format!("Domain {ldh_name}")
         } else if let Some(handle) = &self.object_common.handle {
-            if handle != "*REDACTED*" {
-                format!("Domain {}", handle)
-            } else {
-                "Domain".to_string()
-            }
+            format!("Domain {handle}")
         } else {
             "Domain".to_string()
         };
