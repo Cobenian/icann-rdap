@@ -73,8 +73,23 @@ impl ToMd for &[Redacted] {
 pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
     // convert the RdapResponse to a string
     let rdap_json = serde_json::to_string(&orignal_response).unwrap();
+
+    // Redaction is not a top-level entity so we have to check the JSON
+    // to see if anything exists in the way of "redacted", this should find it in the rdapConformance
+    if !rdap_json.contains("\"redacted\"") {
+        // If there are no redactions, return the original response
+        return orignal_response;
+    }
+
     // convert the string to a JSON Value
     let mut rdap_json_response: Value = serde_json::from_str(&rdap_json).unwrap();
+
+    // this double checks to see if "redacted" is an array
+    if rdap_json_response["redacted"].as_array().is_none() {
+        // If "redacted" is not an array, return the original response
+        return orignal_response;
+    }
+
     // Initialize the final response with the original response
     let mut response = orignal_response;
     // pull the redacted array out of the JSON
@@ -89,26 +104,6 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
 
     // send the response back so we can display it to the client
     response
-}
-
-// This cleans it up into a json pointer which is what we need to use to get the value
-fn convert_to_json_pointer_path(path: &str) -> String {
-    let pointer_path = path
-        .trim_start_matches('$')
-        .replace('.', "/")
-        .replace("['", "/")
-        .replace("']", "")
-        .replace('[', "/")
-        .replace(']', "")
-        .replace("//", "/");
-    pointer_path
-}
-
-fn get_string_from_map(map: &serde_json::Map<String, Value>, key: &str) -> String {
-    map.get(key)
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .unwrap_or_default()
 }
 
 fn convert_redactions<'a>(
@@ -185,6 +180,26 @@ fn convert_redactions<'a>(
     }
 
     rdap_json_response
+}
+
+// utility functions
+fn convert_to_json_pointer_path(path: &str) -> String {
+    let pointer_path = path
+        .trim_start_matches('$')
+        .replace('.', "/")
+        .replace("['", "/")
+        .replace("']", "")
+        .replace('[', "/")
+        .replace(']', "")
+        .replace("//", "/");
+    pointer_path
+}
+
+fn get_string_from_map(map: &serde_json::Map<String, Value>, key: &str) -> String {
+    map.get(key)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
