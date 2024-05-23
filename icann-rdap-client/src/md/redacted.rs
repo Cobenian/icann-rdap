@@ -261,8 +261,8 @@ fn create_redacted_object(item_map: &Map<String, Value>) -> RedactedInfo {
         result_type: Vec::new(), // Set to an empty Vec<Option<ResultType>> initially
         redaction_type: None,    // Set to None initially
     };
-     // Check if the "name" field is an object
-     if let Some(Value::Object(name_map)) = item_map.get("name") {
+    // Check if the "name" field is an object
+    if let Some(Value::Object(name_map)) = item_map.get("name") {
         // If the "name" field contains a "description" or "type" field, use it to replace the "name" field in the RedactedObject
         if let Some(name_value) = name_map.get("description").or_else(|| name_map.get("type")) {
             redacted_object.name = name_value.clone();
@@ -292,8 +292,8 @@ fn parse_redacted_array(
     for item in redacted_array {
         let item_map = item.as_object().unwrap();
         let mut redacted_object = create_redacted_object(item_map);
-    
-       // this has to happen here, before everything else
+
+        // this has to happen here, before everything else
         redacted_object =
             set_result_type_from_json_path(rdap_json_response.clone(), &mut redacted_object);
 
