@@ -94,18 +94,14 @@ pub enum ActionType {
 
 #[derive(Debug, Clone)]
 pub struct RedactedInfo {
-    pub name: Value,                     // Get the description's name or type
-    pub paths_found_count: i32,          // how many paths does the json resolve to?
-    pub post_path: Option<String>,       // the postPath
-    pub original_path: Option<String>,   // the original path that was put into the redaction
+    pub paths_found_count: i32,    // how many paths does the json resolve to?
+    pub post_path: Option<String>, // the postPath
+    pub original_path: Option<String>, // the original path that was put into the redaction
     pub final_path: Vec<Option<String>>, // a vector of the paths where we put a partialValue or emptyValue
     pub do_substitution: bool,           // if we are modifying anything or not
-    pub path_lang: Value, // the path_lang they put in, these may be used in the future
-    pub replacement_path: Option<String>,
-    pub method: Value,                        // the method they are using
-    pub reason: Value,                        // the reason
+    pub method: Value,                   // the method they are using
     pub result_type: Vec<Option<ResultType>>, // a vec of our own internal Results we found
-    pub action_type: Option<ActionType>,      //
+    pub action_type: Option<ActionType>, //
 }
 
 // this is our public entry point
@@ -234,48 +230,19 @@ fn create_redacted_info_object(item_map: &Map<String, Value>) -> RedactedInfo {
     // this is the original_path given to us
     let original_path = post_path.clone();
 
-    let mut redacted_object = RedactedInfo {
-        name: Value::String(String::default()), // Set to empty string initially
-        paths_found_count: 0,                   // Set to 0 initially
+    let redacted_object = RedactedInfo {
+        paths_found_count: 0, // Set to 0 initially
         post_path,
         original_path,
         final_path: Vec::new(), // final path we are doing something with
         do_substitution: false, // flag whether we ACTUALLY doing something or not
-        path_lang: item_map
-            .get("pathLang")
-            .unwrap_or(&Value::String(String::from("")))
-            .clone(),
-        replacement_path: item_map
-            .get("replacementPath")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
         method: item_map
             .get("method")
             .unwrap_or(&Value::String(String::from("")))
             .clone(),
-        reason: Value::String(String::from("")), // Set to empty string initially
         result_type: Vec::new(), // Set to an empty Vec<Option<ResultType>> initially
         action_type: None,       // Set to None initially
     };
-
-    // Check if the "name" field is an object
-    if let Some(Value::Object(name_map)) = item_map.get("name") {
-        // If the "name" field contains a "description" or "type" field, use it to replace the "name" field in the RedactedObject
-        if let Some(name_value) = name_map.get("description").or_else(|| name_map.get("type")) {
-            redacted_object.name = name_value.clone();
-        }
-    }
-
-    // Check if the "reason" field is an object
-    if let Some(Value::Object(reason_map)) = item_map.get("reason") {
-        // If the "reason" field contains a "description" or "type" field, use it to replace the "reason" field in the RedactedObject
-        if let Some(reason_value) = reason_map
-            .get("description")
-            .or_else(|| reason_map.get("type"))
-        {
-            redacted_object.reason = reason_value.clone();
-        }
-    }
 
     redacted_object
 }
