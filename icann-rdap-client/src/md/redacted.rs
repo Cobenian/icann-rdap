@@ -82,6 +82,7 @@ pub enum ResultType {
     FoundNothing, // fall through, value in paths array is not anything else (have never found this w/ redactions done correctly)
     FoundUnknown, // what we found was not a JSON::Value::string (have never found this w/ redactions done correctly)
     FoundPathReturnedBadValue, // what finder.find_as_path() returned was not a Value::Array (have never found this, could possibly be an error)
+    NotAString,                // if it's not a string, we can't do anything with it
 }
 
 // This isn't just based on the string type that is in the redaction method, but also based on the result type above
@@ -313,57 +314,53 @@ fn parse_redacted_array(
     list_of_redactions
 }
 
+fn process_paths(u: &Value, paths: Vec<Value>, item: &mut RedactedInfo, no_value: &Value) {
+    for path_value in paths {
+        if let Value::String(found_path) = path_value {
+            item.final_path.push(Some(found_path.clone())); // Push found_path to final_path on the redacted object
+            let json_pointer = convert_to_json_pointer_path(&found_path);
+            let value_at_path = u.pointer(&json_pointer).unwrap_or(no_value);
+            if value_at_path.is_string() {
+                let str_value = value_at_path.as_str().unwrap_or("");
+                if str_value == "NO_VALUE" {
+                    item.result_type.push(Some(ResultType::StringNoValue));
+                } else if str_value.is_empty() {
+                    item.result_type.push(Some(ResultType::EmptyString));
+                } else {
+                    item.result_type.push(Some(ResultType::PartialString));
+                }
+                continue;
+            }
+        }
+        item.result_type.push(Some(ResultType::NotAString));
+    }
+}
+
+fn process_json_path(u: Value, json_path: JsonPathInst, item: &mut RedactedInfo) {
+    let finder = JsonPathFinder::new(Box::new(u.clone()), Box::new(json_path));
+    let matches = finder.find_as_path();
+
+    if let Value::Array(paths) = matches {
+        if paths.is_empty() {
+            item.result_type.push(Some(ResultType::Removed));
+        } else {
+            // get the length of paths
+            let len = paths.len();
+            // set the path_index_length to the length of the paths
+            item.paths_found_count = len as i32;
+            let no_value = Value::String("NO_VALUE".to_string()); // Moved outside the loop
+            process_paths(&u, paths, item, &no_value);
+        }
+    } else {
+        item.result_type.push(Some(ResultType::NotAString));
+    }
+}
+
 // we are setting our own internal ResultType for each item that is found in the jsonPath
 pub fn set_result_type(u: Value, item: &mut RedactedInfo) -> RedactedInfo {
     if let Some(path) = item.original_path.as_deref() {
-        // let path = path.trim_matches('"'); // Remove double quotes
         match JsonPathInst::from_str(path) {
-            Ok(json_path) => {
-                let finder = JsonPathFinder::new(Box::new(u.clone()), Box::new(json_path));
-                let matches = finder.find_as_path();
-
-                if let Value::Array(paths) = matches {
-                    if paths.is_empty() {
-                        item.result_type.push(Some(ResultType::Removed));
-                    } else {
-                        // get the length of paths
-                        let len = paths.len();
-                        // set the path_index_length to the length of the paths
-                        item.paths_found_count = len as i32;
-                        for path_value in paths {
-                            if let Value::String(found_path) = path_value {
-                                item.final_path.push(Some(found_path.clone())); // Push found_path to final_path on the redacted object
-                                let no_value = Value::String("NO_VALUE".to_string());
-                                let json_pointer = convert_to_json_pointer_path(&found_path);
-                                let value_at_path = u.pointer(&json_pointer).unwrap_or(&no_value);
-                                if value_at_path.is_string() {
-                                    let str_value = value_at_path.as_str().unwrap_or("");
-                                    if str_value == "NO_VALUE" {
-                                        item.result_type.push(Some(ResultType::StringNoValue));
-                                    } else if str_value.is_empty() {
-                                        item.result_type.push(Some(ResultType::EmptyString));
-                                    } else {
-                                        item.result_type.push(Some(ResultType::PartialString));
-                                    }
-                                } else if value_at_path.is_null() {
-                                    item.result_type.push(Some(ResultType::FoundNull));
-                                } else if value_at_path.is_array() {
-                                    item.result_type.push(Some(ResultType::Array));
-                                } else if value_at_path.is_object() {
-                                    item.result_type.push(Some(ResultType::Object));
-                                } else {
-                                    item.result_type.push(Some(ResultType::FoundNothing));
-                                }
-                            } else {
-                                item.result_type.push(Some(ResultType::FoundUnknown));
-                            }
-                        }
-                    }
-                } else {
-                    item.result_type
-                        .push(Some(ResultType::FoundPathReturnedBadValue));
-                }
-            }
+            Ok(json_path) => process_json_path(u, json_path, item),
             Err(_e) => {
                 // siliently fail???
                 // dbg!("Failed to parse JSON path '{}': {}", path, e);
