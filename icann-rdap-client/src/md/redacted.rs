@@ -143,6 +143,25 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
     response
 }
 
+fn replace_json_value(
+    rdap_json_response: &mut serde_json::Value,
+    final_path: &str,
+    final_value: &serde_json::Value,
+) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    replace_with(rdap_json_response.clone(), final_path, &mut |x| {
+        if x.is_string() {
+            match x.as_str() {
+                Some("") => Some(json!("*REDACTED*")),
+                Some(s) => Some(json!(format!("*{}*", s))),
+                _ => Some(json!("*REDACTED*")),
+            }
+        } else {
+            Some(final_value.clone())
+        }
+    })
+    .map_err(|e| e.into())
+}
+
 fn parse_redacted_json(
     rdap_json_response: &mut serde_json::Value,
     redacted_array_option: Option<&Vec<serde_json::Value>>,
@@ -158,11 +177,8 @@ fn parse_redacted_json(
                     let final_path_option = &redacted_object.final_path[path_index_count];
                     if let Some(final_path) = final_path_option {
                         // This is a replacement and we SHOULD NOT be doing this until it is sorted out.
-                        // For experimental reasons though, we shall continue.
                         if let Some(redaction_type) = &redacted_object.redaction_type {
-                            if *redaction_type == RedactionType::ReplacementValue {
-                                // do nothing for now
-                            } else if *redaction_type == RedactionType::EmptyValue
+                            if *redaction_type == RedactionType::EmptyValue
                                 || *redaction_type == RedactionType::PartialValue
                             {
                                 // convert the final_path to a json pointer path
@@ -177,22 +193,10 @@ fn parse_redacted_json(
                                 };
 
                                 // actually do the replace_with
-                                let replaced_json = replace_with(
-                                    rdap_json_response.clone(),
+                                let replaced_json = replace_json_value(
+                                    rdap_json_response,
                                     final_path,
-                                    &mut |x| {
-                                        // STRING ONLY! This is the only spot where we are ACTUALLY replacing or updating something
-                                        if x.is_string() {
-                                            match x.as_str() {
-                                                Some("") => Some(json!("*REDACTED*")),
-                                                Some(s) => Some(json!(format!("*{}*", s))),
-                                                _ => Some(json!("*REDACTED*")),
-                                            }
-                                        } else {
-                                            // it isn't a string, we aren't going to do anything with it
-                                            Some(final_value.clone()) // copy the found value back to it
-                                        }
-                                    },
+                                    &final_value,
                                 );
                                 // Now we check if we did something
                                 match replaced_json {
@@ -225,7 +229,7 @@ fn convert_to_json_pointer_path(path: &str) -> String {
     pointer_path
 }
 
-fn create_redacted_object(item_map: &Map<String, Value>) -> RedactedInfo {
+fn create_redacted_info_object(item_map: &Map<String, Value>) -> RedactedInfo {
     let pre_path = item_map
         .get("prePath")
         .and_then(|v| v.as_str())
@@ -283,6 +287,71 @@ fn create_redacted_object(item_map: &Map<String, Value>) -> RedactedInfo {
     redacted_object
 }
 
+fn set_final_path_substitution(redacted_object: &mut RedactedInfo) {
+    match redacted_object.redaction_type {
+        Some(RedactionType::EmptyValue) | Some(RedactionType::PartialValue) => {
+            redacted_object.do_final_path_subsitution = true;
+        }
+        _ => {
+            redacted_object.do_final_path_subsitution = false;
+        }
+    }
+}
+
+fn set_redaction_type(redacted_object: &mut RedactedInfo) {
+    if let Some(method) = redacted_object.method.as_str() {
+        match method {
+            "emptyValue" => {
+                if !redacted_object.result_type.is_empty() {
+                    if redacted_object.result_type.iter().all(|result_type| {
+                        matches!(
+                            result_type,
+                            Some(ResultType::StringNoValue)
+                                | Some(ResultType::EmptyString)
+                                | Some(ResultType::PartialString)
+                        )
+                    }) {
+                        redacted_object.redaction_type = Some(RedactionType::EmptyValue);
+                    } else {
+                        redacted_object.redaction_type = Some(RedactionType::Unknown);
+                    }
+                } else {
+                    redacted_object.redaction_type = Some(RedactionType::Unknown);
+                }
+            }
+            "partialValue" => {
+                if !redacted_object.result_type.is_empty() {
+                    if redacted_object.result_type.iter().all(|result_type| {
+                        matches!(
+                            result_type,
+                            Some(ResultType::StringNoValue)
+                                | Some(ResultType::EmptyString)
+                                | Some(ResultType::PartialString)
+                        )
+                    }) {
+                        redacted_object.redaction_type = Some(RedactionType::PartialValue);
+                    } else {
+                        redacted_object.redaction_type = Some(RedactionType::Unknown);
+                    }
+                } else {
+                    redacted_object.redaction_type = Some(RedactionType::Unknown);
+                }
+            }
+            "replacementValue" => {
+                redacted_object.redaction_type = Some(RedactionType::ReplacementValue);
+            }
+            "removal" => {
+                redacted_object.redaction_type = Some(RedactionType::Removal);
+            }
+            _ => {
+                redacted_object.redaction_type = Some(RedactionType::Unknown);
+            }
+        }
+    } else {
+        redacted_object.redaction_type = Some(RedactionType::Unknown);
+    }
+}
+
 fn parse_redacted_array(
     rdap_json_response: &Value,
     redacted_array: &Vec<Value>,
@@ -291,135 +360,16 @@ fn parse_redacted_array(
 
     for item in redacted_array {
         let item_map = item.as_object().unwrap();
-        let mut redacted_object = create_redacted_object(item_map);
+        let mut redacted_object = create_redacted_info_object(item_map);
 
         // this has to happen here, before everything else
-        redacted_object =
-            set_result_type_from_json_path(rdap_json_response.clone(), &mut redacted_object);
+        redacted_object = set_result_type(rdap_json_response.clone(), &mut redacted_object);
 
         // check the method and result_type to determine the redaction_type
-        if let Some(method) = redacted_object.method.as_str() {
-            // we don't just assume you are what you say you are...
-            match method {
-                "emptyValue" => {
-                    if !redacted_object.result_type.is_empty() {
-                        // I have relaxed the rules around this one, so we can have partialValue as well counts, so if someone has inadvertently added a partialValue to an emptyValue, it will still be redacted
-                        if redacted_object.result_type.iter().all(|result_type| {
-                            matches!(
-                                result_type,
-                                Some(ResultType::StringNoValue)
-                                    | Some(ResultType::EmptyString)
-                                    | Some(ResultType::PartialString)
-                            )
-                        }) {
-                            redacted_object.redaction_type = Some(RedactionType::EmptyValue);
-                        } else {
-                            redacted_object.redaction_type = Some(RedactionType::Unknown);
-                        }
-                    } else {
-                        // the result_type is empty, so we don't know what it is
-                        redacted_object.redaction_type = Some(RedactionType::Unknown);
-                    }
-                }
-                "partialValue" => {
-                    if !redacted_object.result_type.is_empty() {
-                        if redacted_object.result_type.iter().all(|result_type| {
-                            // matches!(result_type, Some(ResultType::PartialString))
-                            matches!(
-                                result_type,
-                                Some(ResultType::StringNoValue)
-                                    | Some(ResultType::EmptyString)
-                                    | Some(ResultType::PartialString)
-                            )
-                        }) {
-                            redacted_object.redaction_type = Some(RedactionType::PartialValue);
-                        } else {
-                            redacted_object.redaction_type = Some(RedactionType::Unknown);
-                        }
-                    } else {
-                        // the result_type is empty, so we don't know what it is
-                        redacted_object.redaction_type = Some(RedactionType::Unknown);
-                    }
-                }
-                "replacementValue" => {
-                    // you claimed it was this, that's what we are going to go with
-                    redacted_object.redaction_type = Some(RedactionType::ReplacementValue);
-                    // if !redacted_object.result_type.is_empty() {
-                    //     if redacted_object.result_type.iter().all(|result_type| {
-                    //         matches!(result_type, Some(ResultType::PartialString))
-                    //     }) {
-                    //         if redacted_object.replacement_path.is_some()
-                    //             && !redacted_object
-                    //                 .replacement_path
-                    //                 .as_ref()
-                    //                 .unwrap()
-                    //                 .is_empty()
-                    //             && (redacted_object.pre_path.is_some()
-                    //                 && !redacted_object.pre_path.as_ref().unwrap().is_empty()
-                    //                 || redacted_object.post_path.is_some()
-                    //                     && !redacted_object.post_path.as_ref().unwrap().is_empty())
-                    //         {
-                    //             redacted_object.redaction_type =
-                    //                 Some(RedactionType::ReplacementValue);
-                    //         } else if redacted_object.replacement_path.is_none()
-                    //             && (redacted_object.pre_path.is_some()
-                    //                 && !redacted_object.pre_path.as_ref().unwrap().is_empty()
-                    //                 || redacted_object.post_path.is_some()
-                    //                     && !redacted_object.post_path.as_ref().unwrap().is_empty())
-                    //         {
-                    //             // this logic is really a partial value
-                    //             redacted_object.redaction_type = Some(RedactionType::PartialValue);
-                    //         } else {
-                    //             redacted_object.redaction_type = Some(RedactionType::Unknown);
-                    //         }
-                    //     } else {
-                    //         redacted_object.redaction_type = Some(RedactionType::Unknown);
-                    //     }
-                    // } else {
-                    //     // the result_type is empty, so we don't know what it is
-                    //     redacted_object.redaction_type = Some(RedactionType::Unknown);
-                    // }
-                }
-                "removal" => {
-                    // you said removal, we do nothing
-                    redacted_object.redaction_type = Some(RedactionType::Removal);
-                    // if !redacted_object.result_type.is_empty() {
-                    //     if redacted_object
-                    //         .result_type
-                    //         .iter()
-                    //         .all(|result_type| matches!(result_type, Some(ResultType::Removed)))
-                    //     {
-                    //         // they were all removals so mark it as such
-                    //         redacted_object.redaction_type = Some(RedactionType::Removal);
-                    //     } else {
-                    //         redacted_object.redaction_type = Some(RedactionType::Unknown);
-                    //     }
-                    // } else {
-                    //     // the result_type is empty, so we don't know what it is
-                    //     redacted_object.redaction_type = Some(RedactionType::Unknown);
-                    // }
-                }
-                _ => {
-                    // what they put in doesn't match any of the accepted values
-                    redacted_object.redaction_type = Some(RedactionType::Unknown);
-                }
-            }
-        } else {
-            // the method was not a string, just mark it as Unknown
-            redacted_object.redaction_type = Some(RedactionType::Unknown);
-        }
+        set_redaction_type(&mut redacted_object);
 
         // now we need to check if we need to do the final path substitution
-        match redacted_object.redaction_type {
-            // if you are changing what you're going to subsitute on, you need to change this.
-            Some(RedactionType::EmptyValue) | Some(RedactionType::PartialValue) => {
-                // | Some(RedactionType::ReplacementValue) => {
-                redacted_object.do_final_path_subsitution = true;
-            }
-            _ => {
-                redacted_object.do_final_path_subsitution = false;
-            }
-        }
+        set_final_path_substitution(&mut redacted_object);
 
         // put the redacted_object into the list of them
         list_of_redactions.push(redacted_object);
@@ -429,9 +379,9 @@ fn parse_redacted_array(
 }
 
 // we are setting our own internal ResultType for each item that is found in the jsonPath
-pub fn set_result_type_from_json_path(u: Value, item: &mut RedactedInfo) -> RedactedInfo {
+pub fn set_result_type(u: Value, item: &mut RedactedInfo) -> RedactedInfo {
     if let Some(path) = item.original_path.as_deref() {
-        let path = path.trim_matches('"'); // Remove double quotes
+        // let path = path.trim_matches('"'); // Remove double quotes
         match JsonPathInst::from_str(path) {
             Ok(json_path) => {
                 let finder = JsonPathFinder::new(Box::new(u.clone()), Box::new(json_path));
