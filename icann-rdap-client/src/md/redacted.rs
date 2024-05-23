@@ -84,31 +84,28 @@ pub enum ResultType {
     FoundPathReturnedBadValue, // what finder.find_as_path() returned was not a Value::Array (have never found this, could possibly be an error)
 }
 
+// This isn't just based on the string type that is in the redaction method, but also based on the result type above
+#[derive(Debug, PartialEq, Clone)]
+pub enum ActionType {
+    SubstituteEmptyValue,
+    SubstitutePartialValue,
+    DoNothing,
+}
+
 #[derive(Debug, Clone)]
 pub struct RedactedInfo {
     pub name: Value,                     // Get the description's name or type
-    pub path_index_count: i32,           // how many paths does the json resolve to?
-    pub pre_path: Option<String>,        // the prePath
+    pub paths_found_count: i32,          // how many paths does the json resolve to?
     pub post_path: Option<String>,       // the postPath
     pub original_path: Option<String>,   // the original path that was put into the redaction
     pub final_path: Vec<Option<String>>, // a vector of the paths where we put a partialValue or emptyValue
-    pub do_final_path_subsitution: bool, // if we are modifying anything or not
+    pub do_substitution: bool,           // if we are modifying anything or not
     pub path_lang: Value, // the path_lang they put in, these may be used in the future
     pub replacement_path: Option<String>,
-    pub method: Value,                         // the method they are using
-    pub reason: Value,                         // the reason
-    pub result_type: Vec<Option<ResultType>>,  // a vec of our own internal Results we found
-    pub redaction_type: Option<RedactionType>, //
-}
-
-// This isn't just based on the string type that is in the redaction method, but also based on the result type above
-#[derive(Debug, PartialEq, Clone)]
-pub enum RedactionType {
-    EmptyValue,
-    PartialValue,
-    ReplacementValue,
-    Removal,
-    Unknown,
+    pub method: Value,                        // the method they are using
+    pub reason: Value,                        // the reason
+    pub result_type: Vec<Option<ResultType>>, // a vec of our own internal Results we found
+    pub action_type: Option<ActionType>,      //
 }
 
 // this is our public entry point
@@ -171,15 +168,15 @@ fn parse_redacted_json(
         // Loop through the RedactedObjects
         for redacted_object in redactions {
             // If we have determined we are doing some kind of substitution
-            if redacted_object.do_final_path_subsitution && !redacted_object.final_path.is_empty() {
-                let path_count = redacted_object.path_index_count as usize;
+            if redacted_object.do_substitution && !redacted_object.final_path.is_empty() {
+                let path_count = redacted_object.paths_found_count as usize;
                 for path_index_count in 0..path_count {
                     let final_path_option = &redacted_object.final_path[path_index_count];
                     if let Some(final_path) = final_path_option {
                         // This is a replacement and we SHOULD NOT be doing this until it is sorted out.
-                        if let Some(redaction_type) = &redacted_object.redaction_type {
-                            if *redaction_type == RedactionType::EmptyValue
-                                || *redaction_type == RedactionType::PartialValue
+                        if let Some(redaction_type) = &redacted_object.action_type {
+                            if *redaction_type == ActionType::SubstituteEmptyValue
+                                || *redaction_type == ActionType::SubstitutePartialValue
                             {
                                 // convert the final_path to a json pointer path
                                 let final_path_str = convert_to_json_pointer_path(final_path);
@@ -230,25 +227,20 @@ fn convert_to_json_pointer_path(path: &str) -> String {
 }
 
 fn create_redacted_info_object(item_map: &Map<String, Value>) -> RedactedInfo {
-    let pre_path = item_map
-        .get("prePath")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
     let post_path = item_map
         .get("postPath")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
     // this is the original_path given to us
-    let original_path = pre_path.clone().or(post_path.clone());
+    let original_path = post_path.clone();
 
     let mut redacted_object = RedactedInfo {
         name: Value::String(String::default()), // Set to empty string initially
-        path_index_count: 0,                    // Set to 0 initially
-        pre_path,
+        paths_found_count: 0,                   // Set to 0 initially
         post_path,
         original_path,
         final_path: Vec::new(), // final path we are doing something with
-        do_final_path_subsitution: false, // flag whether we ACTUALLY doing something or not
+        do_substitution: false, // flag whether we ACTUALLY doing something or not
         path_lang: item_map
             .get("pathLang")
             .unwrap_or(&Value::String(String::from("")))
@@ -263,8 +255,9 @@ fn create_redacted_info_object(item_map: &Map<String, Value>) -> RedactedInfo {
             .clone(),
         reason: Value::String(String::from("")), // Set to empty string initially
         result_type: Vec::new(), // Set to an empty Vec<Option<ResultType>> initially
-        redaction_type: None,    // Set to None initially
+        action_type: None,       // Set to None initially
     };
+
     // Check if the "name" field is an object
     if let Some(Value::Object(name_map)) = item_map.get("name") {
         // If the "name" field contains a "description" or "type" field, use it to replace the "name" field in the RedactedObject
@@ -288,67 +281,42 @@ fn create_redacted_info_object(item_map: &Map<String, Value>) -> RedactedInfo {
 }
 
 fn set_final_path_substitution(redacted_object: &mut RedactedInfo) {
-    match redacted_object.redaction_type {
-        Some(RedactionType::EmptyValue) | Some(RedactionType::PartialValue) => {
-            redacted_object.do_final_path_subsitution = true;
+    match redacted_object.action_type {
+        Some(ActionType::SubstituteEmptyValue) | Some(ActionType::SubstitutePartialValue) => {
+            redacted_object.do_substitution = true;
         }
         _ => {
-            redacted_object.do_final_path_subsitution = false;
+            redacted_object.do_substitution = false;
         }
     }
 }
 
-fn set_redaction_type(redacted_object: &mut RedactedInfo) {
-    if let Some(method) = redacted_object.method.as_str() {
-        match method {
-            "emptyValue" => {
-                if !redacted_object.result_type.is_empty() {
-                    if redacted_object.result_type.iter().all(|result_type| {
-                        matches!(
-                            result_type,
-                            Some(ResultType::StringNoValue)
-                                | Some(ResultType::EmptyString)
-                                | Some(ResultType::PartialString)
-                        )
-                    }) {
-                        redacted_object.redaction_type = Some(RedactionType::EmptyValue);
-                    } else {
-                        redacted_object.redaction_type = Some(RedactionType::Unknown);
-                    }
-                } else {
-                    redacted_object.redaction_type = Some(RedactionType::Unknown);
-                }
-            }
-            "partialValue" => {
-                if !redacted_object.result_type.is_empty() {
-                    if redacted_object.result_type.iter().all(|result_type| {
-                        matches!(
-                            result_type,
-                            Some(ResultType::StringNoValue)
-                                | Some(ResultType::EmptyString)
-                                | Some(ResultType::PartialString)
-                        )
-                    }) {
-                        redacted_object.redaction_type = Some(RedactionType::PartialValue);
-                    } else {
-                        redacted_object.redaction_type = Some(RedactionType::Unknown);
-                    }
-                } else {
-                    redacted_object.redaction_type = Some(RedactionType::Unknown);
-                }
-            }
-            "replacementValue" => {
-                redacted_object.redaction_type = Some(RedactionType::ReplacementValue);
-            }
-            "removal" => {
-                redacted_object.redaction_type = Some(RedactionType::Removal);
-            }
-            _ => {
-                redacted_object.redaction_type = Some(RedactionType::Unknown);
-            }
+fn set_action_type(redacted_object: &mut RedactedInfo) {
+    let is_valid_result_type = |result_type: &Option<ResultType>| {
+        matches!(
+            result_type,
+            Some(ResultType::StringNoValue)
+                | Some(ResultType::EmptyString)
+                | Some(ResultType::PartialString)
+        )
+    };
+
+    let which_action_type = |redaction_type: ActionType, redacted_object: &mut RedactedInfo| {
+        if !redacted_object.result_type.is_empty()
+            && redacted_object.result_type.iter().all(is_valid_result_type)
+        {
+            redacted_object.action_type = Some(redaction_type);
+        } else {
+            redacted_object.action_type = Some(ActionType::DoNothing);
         }
-    } else {
-        redacted_object.redaction_type = Some(RedactionType::Unknown);
+    };
+
+    match redacted_object.method.as_str() {
+        Some("emptyValue") => which_action_type(ActionType::SubstituteEmptyValue, redacted_object),
+        Some("partialValue") => {
+            which_action_type(ActionType::SubstitutePartialValue, redacted_object)
+        }
+        _ => redacted_object.action_type = Some(ActionType::DoNothing),
     }
 }
 
@@ -366,7 +334,7 @@ fn parse_redacted_array(
         redacted_object = set_result_type(rdap_json_response.clone(), &mut redacted_object);
 
         // check the method and result_type to determine the redaction_type
-        set_redaction_type(&mut redacted_object);
+        set_action_type(&mut redacted_object);
 
         // now we need to check if we need to do the final path substitution
         set_final_path_substitution(&mut redacted_object);
@@ -394,7 +362,7 @@ pub fn set_result_type(u: Value, item: &mut RedactedInfo) -> RedactedInfo {
                         // get the length of paths
                         let len = paths.len();
                         // set the path_index_length to the length of the paths
-                        item.path_index_count = len as i32;
+                        item.paths_found_count = len as i32;
                         for path_value in paths {
                             if let Value::String(found_path) = path_value {
                                 item.final_path.push(Some(found_path.clone())); // Push found_path to final_path on the redacted object
