@@ -1,15 +1,14 @@
-use std::any::TypeId;
+// use std::any::TypeId;
 
 use icann_rdap_common::response::nameserver::Nameserver;
 
-use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks};
+// use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks};
 
 use super::ToGtld;
 
-
 impl ToGtld for Nameserver {
     fn to_gtld(&self) -> String {
-        let typeid = TypeId::of::<Nameserver>();
+        // let typeid = TypeId::of::<Nameserver>();
         let mut gtld = String::new();
 
         // other common stuff

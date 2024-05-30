@@ -1,18 +1,16 @@
-use std::any::TypeId;
+// use std::any::TypeId;
 
-use icann_rdap_common::dns_types::{DnsAlgorithmType, DnsDigestType};
-use icann_rdap_common::response::domain::{Domain, SecureDns, Variant};
+// use icann_rdap_common::dns_types::{DnsAlgorithmType, DnsDigestType};
+use icann_rdap_common::response::domain::Domain;
 
-use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks};
+// use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks};
 
 // use super::types::{events_to_table, links_to_table, public_ids_to_table};
-use super::{
-    ToGtld
-};
+use super::ToGtld;
 
 impl ToGtld for Domain {
     fn to_gtld(&self) -> String {
-        let typeid = TypeId::of::<Domain>();
+        // let typeid = TypeId::of::<Domain>();
         let mut gtld = String::new();
         // gtld.push_str(&self.common.to_gtld());
 

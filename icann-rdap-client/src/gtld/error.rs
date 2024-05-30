@@ -1,15 +1,14 @@
-use std::any::TypeId;
-
+// use std::any::TypeId;
 use icann_rdap_common::response::error::Error;
 
 use super::ToGtld;
 
 impl ToGtld for Error {
-  fn to_gtld(&self) -> String {
-      let mut gtld = String::new();
-      // gtld.push_str(&self.common.to_md(params.from_parent(TypeId::of::<Help>())));
-      gtld.push_str("\n");
-      gtld.push('\n');
-      gtld
-  }
+    fn to_gtld(&self) -> String {
+        let mut gtld = String::new();
+        // gtld.push_str(&self.common.to_md(params.from_parent(TypeId::of::<Help>())));
+        gtld.push_str("\n");
+        gtld.push('\n');
+        gtld
+    }
 }

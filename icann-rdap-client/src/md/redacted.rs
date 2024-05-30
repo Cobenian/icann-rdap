@@ -4,7 +4,7 @@ use icann_rdap_common::response::redacted::Redacted;
 use jsonpath::replace_with;
 use jsonpath_lib as jsonpath;
 use jsonpath_rust::{JsonPathFinder, JsonPathInst};
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 
 use super::{string::StringUtil, table::MultiPartTable, MdOptions, MdParams, ToMd};
 use icann_rdap_common::response::RdapResponse;
@@ -69,41 +69,13 @@ impl ToMd for &[Redacted] {
     }
 }
 
-// These are the different types of results that we can get from the JSON path checks
-#[derive(Debug, PartialEq, Clone)]
-pub enum ResultType {
-    StringNoValue, // (*) what we found in the value paths array was a string but has no value (yes, this is a little weird, but does exist) `Redaction by Empty Value`
-    EmptyString, // (*) what we found in the value paths array was a string but it is an empty string `Redaction by Empty Value`
-    PartialString, // (*) what we found in the value paths array was a string and it does have a value `Redaction by Partial Value`
-    NotAString,    // if it's not a string, we can't do anything with it
-}
-
-// This isn't just based on the string type that is in the redaction method, but also based on the result type above
-#[derive(Debug, PartialEq, Clone)]
-pub enum ActionType {
-    SubstituteEmptyValue,
-    SubstitutePartialValue,
-    DoNothing,
-}
-
-#[derive(Debug, Clone)]
-pub struct RedactedInfo {
-    pub paths_found_count: i32, // how many paths does the json resolve to?
-    pub original_path: Option<String>, // the original (post) path that was put into the redaction
-    pub final_path: Vec<Option<String>>, // a vector of the paths where we put our partialValue or emptyValue
-    pub do_substitution: bool,           // if we are modifying anything or not
-    pub method: Value,                   // the method they are using
-    pub result_type: Vec<Option<ResultType>>, // a vec of our own internal Results we found
-    pub action_type: Option<ActionType>, //
-}
-
 // this is our public entry point
 pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
     // convert the RdapResponse to a string
     let rdap_json = serde_json::to_string(&orignal_response).unwrap();
 
     // Redaction is not a top-level entity so we have to check the JSON
-    // to see if anything exists in the way of "redacted"
+    // to see if anything exists in the way of "redacted", this should find it in the rdapConformance
     if !rdap_json.contains("\"redacted\"") {
         // If there are no redactions, return the original response
         return orignal_response;
@@ -112,104 +84,105 @@ pub fn replace_redacted_items(orignal_response: RdapResponse) -> RdapResponse {
     // convert the string to a JSON Value
     let mut rdap_json_response: Value = serde_json::from_str(&rdap_json).unwrap();
 
-    // Check if "redacted" is an array
+    // this double checks to see if "redacted" is an array
     if rdap_json_response["redacted"].as_array().is_none() {
         // If "redacted" is not an array, return the original response
         return orignal_response;
     }
 
-    // Initialize the final response with the original response and pull the redaction array out
+    // Initialize the final response with the original response
     let mut response = orignal_response;
+    // pull the redacted array out of the JSON
     let redacted_array_option = rdap_json_response["redacted"].as_array().cloned();
 
     // if there are any redactions we need to do some modifications
-    if let Some(redacted_array) = redacted_array_option {
-        if !redacted_array.is_empty() {
-            parse_redacted_json(&mut rdap_json_response, Some(&redacted_array));
-            // convert the Value back to a RdapResponse
-            response = serde_json::from_value(rdap_json_response).unwrap();
-        }
+    if let Some(ref redacted_array) = redacted_array_option {
+        let new_json_response = convert_redactions(&mut rdap_json_response, redacted_array).clone();
+        // convert the Value back to a RdapResponse
+        response = serde_json::from_value(new_json_response).unwrap();
     }
 
     // send the response back so we can display it to the client
     response
 }
 
-fn replace_json_value(
-    rdap_json_response: &mut serde_json::Value,
-    final_path: &str,
-    final_value: &serde_json::Value,
-) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    replace_with(rdap_json_response.clone(), final_path, &mut |x| {
-        if x.is_string() {
-            match x.as_str() {
-                Some("") => Some(json!("*REDACTED*")),
-                Some(s) => Some(json!(format!("*{}*", s))),
-                _ => Some(json!("*REDACTED*")),
-            }
-        } else {
-            Some(final_value.clone())
+fn convert_redactions<'a>(
+    rdap_json_response: &'a mut Value,
+    redacted_array: &'a [Value],
+) -> &'a mut Value {
+    for item in redacted_array {
+        let item_map = item.as_object().unwrap();
+        let post_path = get_string_from_map(item_map, "postPath");
+        let method = get_string_from_map(item_map, "method");
+
+        // if method doesn't equal emptyValue or partialValue, we don't need to do anything, we can skip to the next item
+        if method != "emptyValue" && method != "partialValue" && !post_path.is_empty() {
+            continue;
         }
-    })
-    .map_err(|e| e.into())
-}
 
-fn process_redaction_type(
-    redaction_type: &ActionType,
-    rdap_json_response: &mut serde_json::Value,
-    final_path: &str,
-) {
-    if *redaction_type == ActionType::SubstituteEmptyValue
-        || *redaction_type == ActionType::SubstitutePartialValue
-    {
-        // convert the final_path to a json pointer path
-        let final_path_str = convert_to_json_pointer_path(final_path);
-        // grab the value at the end point of the JSON path
-        let final_value = match rdap_json_response.pointer(&final_path_str) {
-            Some(value) => value.clone(),
-            None => {
-                return;
-            }
-        };
-
-        // actually do the replace_with
-        let replaced_json = replace_json_value(rdap_json_response, final_path, &final_value);
-        // Now we check if we did something
-        match replaced_json {
-            Ok(new_v) => {
-                *rdap_json_response = new_v; // we replaced something so now we need to update the response
-            }
-            _ => {
-                // Do nothing but we need to investigate why this is happening
-            }
-        }
-    }
-}
-
-fn parse_redacted_json(
-    rdap_json_response: &mut serde_json::Value,
-    redacted_array_option: Option<&Vec<serde_json::Value>>,
-) {
-    if let Some(redacted_array) = redacted_array_option {
-        let redactions = parse_redacted_array(rdap_json_response, redacted_array);
-        for redacted_object in redactions {
-            // If we have determined we are doing some kind of substitution
-            if redacted_object.do_substitution && !redacted_object.final_path.is_empty() {
-                let path_count = redacted_object.paths_found_count as usize;
-                for path_index_count in 0..path_count {
-                    let final_path_option = &redacted_object.final_path[path_index_count];
-                    if let Some(final_path) = final_path_option {
-                        if let Some(redaction_type) = &redacted_object.action_type {
-                            process_redaction_type(redaction_type, rdap_json_response, final_path);
+        match JsonPathInst::from_str(&post_path) {
+            Ok(json_path) => {
+                let finder =
+                    JsonPathFinder::new(Box::new(rdap_json_response.clone()), Box::new(json_path));
+                let matches = finder.find_as_path();
+                if let Value::Array(paths) = matches {
+                    if paths.is_empty() {
+                        continue; // we don't need to do anything, we can skip to the next item
+                    } else {
+                        for path_value in paths {
+                            if let Value::String(found_path) = path_value {
+                                let no_value = Value::String("NO_VALUE".to_string());
+                                let json_pointer = convert_to_json_pointer_path(&found_path);
+                                let value_at_path = rdap_json_response
+                                    .pointer(&json_pointer)
+                                    .unwrap_or(&no_value);
+                                if value_at_path.is_string() {
+                                    // grab the value at the end point of the JSON path
+                                    let end_of_path_value =
+                                        match rdap_json_response.pointer(&json_pointer) {
+                                            Some(value) => value.clone(),
+                                            None => {
+                                                continue;
+                                            }
+                                        };
+                                    let replaced_json = replace_with(
+                                        rdap_json_response.clone(),
+                                        &found_path,
+                                        &mut |x| {
+                                            // STRING ONLY! This is the only spot where we are ACTUALLY replacing or updating something
+                                            if x.is_string() {
+                                                match x.as_str() {
+                                                    Some("") => Some(json!("*REDACTED*")),
+                                                    Some(s) => Some(json!(format!("*{}*", s))),
+                                                    _ => Some(json!("*REDACTED*")),
+                                                }
+                                            } else {
+                                                Some(end_of_path_value.clone()) // it isn't a string, put it back in there
+                                            }
+                                        },
+                                    );
+                                    match replaced_json {
+                                        Ok(new_json) => *rdap_json_response = new_json,
+                                        _ => {
+                                            // why did we fail to modify the JSON?
+                                        }
+                                    };
+                                }
+                            }
                         }
                     }
                 }
             }
+            _ => {
+                // do nothing
+            }
         }
     }
+
+    rdap_json_response
 }
 
-// This cleans it up into a json pointer which is what we need to use to get the value
+// utility functions
 fn convert_to_json_pointer_path(path: &str) -> String {
     let pointer_path = path
         .trim_start_matches('$')
@@ -222,148 +195,11 @@ fn convert_to_json_pointer_path(path: &str) -> String {
     pointer_path
 }
 
-fn create_redacted_info_object(item_map: &Map<String, Value>) -> RedactedInfo {
-    let original_path = item_map
-        .get("postPath")
+fn get_string_from_map(map: &serde_json::Map<String, Value>, key: &str) -> String {
+    map.get(key)
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    let redacted_object = RedactedInfo {
-        paths_found_count: 0, // Set to 0 initially
-        original_path,
-        final_path: Vec::new(), // final path we are doing something with
-        do_substitution: false, // flag whether we ACTUALLY doing something or not
-        method: item_map
-            .get("method")
-            .unwrap_or(&Value::String(String::from("")))
-            .clone(),
-        result_type: Vec::new(), // Set to an empty Vec<Option<ResultType>> initially
-        action_type: Some(ActionType::DoNothing), // Set to None initially
-    };
-
-    redacted_object
-}
-
-fn set_final_path_substitution(redacted_object: &mut RedactedInfo) {
-    match redacted_object.action_type {
-        Some(ActionType::SubstituteEmptyValue) | Some(ActionType::SubstitutePartialValue) => {
-            redacted_object.do_substitution = true;
-        }
-        _ => {
-            redacted_object.do_substitution = false;
-        }
-    }
-}
-
-fn set_action_type(redacted_object: &mut RedactedInfo) {
-    let is_valid_result_type = |result_type: &Option<ResultType>| {
-        matches!(
-            result_type,
-            Some(ResultType::StringNoValue)
-                | Some(ResultType::EmptyString)
-                | Some(ResultType::PartialString)
-        )
-    };
-
-    let which_action_type = |redaction_type: ActionType, redacted_object: &mut RedactedInfo| {
-        if !redacted_object.result_type.is_empty()
-            && redacted_object.result_type.iter().all(is_valid_result_type)
-        {
-            redacted_object.action_type = Some(redaction_type);
-        } else {
-            redacted_object.action_type = Some(ActionType::DoNothing);
-        }
-    };
-
-    match redacted_object.method.as_str() {
-        Some("emptyValue") => which_action_type(ActionType::SubstituteEmptyValue, redacted_object),
-        Some("partialValue") => {
-            which_action_type(ActionType::SubstitutePartialValue, redacted_object)
-        }
-        _ => redacted_object.action_type = Some(ActionType::DoNothing),
-    }
-}
-
-fn parse_redacted_array(
-    rdap_json_response: &Value,
-    redacted_array: &Vec<Value>,
-) -> Vec<RedactedInfo> {
-    let mut list_of_redactions: Vec<RedactedInfo> = Vec::new();
-
-    for item in redacted_array {
-        let item_map = item.as_object().unwrap();
-        let mut redacted_info = create_redacted_info_object(item_map);
-
-        // this has to happen here, before everything else
-        redacted_info = set_result_type(rdap_json_response.clone(), &mut redacted_info);
-
-        // check the method and result_type to determine the redaction_type
-        set_action_type(&mut redacted_info);
-
-        // now we need to check if we need to do the final path substitution
-        set_final_path_substitution(&mut redacted_info);
-
-        // put the redacted_object into a list so we can do something with them
-        list_of_redactions.push(redacted_info);
-    }
-
-    list_of_redactions
-}
-
-fn process_paths(u: &Value, paths: Vec<Value>, item: &mut RedactedInfo, no_value: &Value) {
-    for path_value in paths {
-        if let Value::String(found_path) = path_value {
-            item.final_path.push(Some(found_path.clone())); // Push found_path to final_path on the redacted object
-            let json_pointer = convert_to_json_pointer_path(&found_path);
-            let value_at_path = u.pointer(&json_pointer).unwrap_or(no_value);
-            if value_at_path.is_string() {
-                let str_value = value_at_path.as_str().unwrap_or("");
-                if str_value == "NO_VALUE" {
-                    item.result_type.push(Some(ResultType::StringNoValue));
-                } else if str_value.is_empty() {
-                    item.result_type.push(Some(ResultType::EmptyString));
-                } else {
-                    item.result_type.push(Some(ResultType::PartialString));
-                }
-                continue;
-            }
-        }
-        item.result_type.push(Some(ResultType::NotAString));
-    }
-}
-
-fn process_json_path(u: Value, json_path: JsonPathInst, item: &mut RedactedInfo) {
-    let finder = JsonPathFinder::new(Box::new(u.clone()), Box::new(json_path));
-    let matches = finder.find_as_path();
-
-    if let Value::Array(paths) = matches {
-        if paths.is_empty() {
-            item.result_type.push(Some(ResultType::NotAString));
-        } else {
-            // get the length of paths
-            let len = paths.len();
-            // set the path_index_length to the length of the paths
-            item.paths_found_count = len as i32;
-            let no_value = Value::String("NO_VALUE".to_string()); // Moved outside the loop
-            process_paths(&u, paths, item, &no_value);
-        }
-    } else {
-        item.result_type.push(Some(ResultType::NotAString));
-    }
-}
-
-// we are setting our own internal ResultType for each item that is found in the jsonPath
-pub fn set_result_type(u: Value, item: &mut RedactedInfo) -> RedactedInfo {
-    if let Some(path) = item.original_path.as_deref() {
-        match JsonPathInst::from_str(path) {
-            Ok(json_path) => process_json_path(u, json_path, item),
-            Err(_e) => {
-                // siliently fail???
-                // dbg!("Failed to parse JSON path '{}': {}", path, e);
-            }
-        }
-    }
-    item.clone()
+        .map(|s| s.to_string())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -383,11 +219,11 @@ mod tests {
         let mut rdap_json_response: Value = serde_json::from_str(&contents)?;
         let redacted_array_option = rdap_json_response["redacted"].as_array().cloned();
         // we are testing parse_redacted_json here -- just the JSON transforms
-        crate::md::redacted::parse_redacted_json(
-            &mut rdap_json_response,
-            redacted_array_option.as_ref(),
-        );
-
+        if let Some(redacted_array) = redacted_array_option {
+            crate::md::redacted::convert_redactions(&mut rdap_json_response, &redacted_array);
+        } else {
+            assert!(false, "No redacted array found in the JSON");
+        }
         let pretty_json = serde_json::to_string_pretty(&rdap_json_response)?;
         println!("{}", pretty_json);
         Ok(pretty_json)

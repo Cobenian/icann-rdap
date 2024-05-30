@@ -1,7 +1,7 @@
-use std::any::TypeId;
+// use std::any::TypeId;
 
 use icann_rdap_common::{
-    check::{CheckParams, GetChecks, GetSubChecks},
+    // check::{CheckParams, GetChecks, GetSubChecks},
     response::network::Network,
 };
 
@@ -9,7 +9,7 @@ use super::ToGtld;
 
 impl ToGtld for Network {
     fn to_gtld(&self) -> String {
-        let typeid = TypeId::of::<Network>();
+        // let typeid = TypeId::of::<Network>();
         let mut gtld = String::new();
         // gtld.push_str(&self.common.to_md());
         let header_text = if self.start_address.is_some() && self.end_address.is_some() {

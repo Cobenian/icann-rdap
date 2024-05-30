@@ -12,6 +12,7 @@ use icann_rdap_client::{
     query::{qtype::QueryType, request::ResponseData},
     request::{RequestData, RequestResponse, RequestResponses, SourceType},
 };
+
 use icann_rdap_common::{media_types::RDAP_MEDIA_TYPE, response::RdapResponse};
 use reqwest::Client;
 use termimad::{crossterm::style::Color::*, Alignment, MadSkin};
@@ -274,17 +275,7 @@ fn do_output<'a, W: std::io::Write>(
             )?;
         }
         OutputType::Gtld => {
-            // info!("GTLD in the front spot");
-            // println!("GTLD in the GOOOOOLD spot");
-            let json_str = serde_json::to_string(&response.rdap).unwrap();
-            let v: Value = serde_json::from_str(&json_str).unwrap();
-            // info!("GTLD: {}", v["ldhName"]);
-            // print_flattened_json(&v, "".to_string());
-            writeln!(
-                write,
-                "{}",
-                response.rdap.to_gtld()
-            )?;
+            writeln!(write, "{}", response.rdap.to_gtld())?;
         }
         _ => {
             info!("this here is no output type specified");
@@ -386,21 +377,6 @@ fn do_final_output<W: std::io::Write>(
     Ok(())
 }
 
-fn print_flattened_json(value: &Value, prefix: String) {
-    match value {
-        Value::Object(map) => {
-            for (key, value) in map {
-                print_flattened_json(value, format!("{}{}: ", prefix, key));
-            }
-        }
-        Value::Array(arr) => {
-            for (index, value) in arr.iter().enumerate() {
-                print_flattened_json(value, format!("{}[{}]: ", prefix, index));
-            }
-        }
-        _ => println!("{}{}", prefix, value),
-    }
-}
 fn get_related_link(rdap_response: &RdapResponse) -> Vec<&str> {
     if let Some(links) = rdap_response.get_links() {
         let urls: Vec<&str> = links
