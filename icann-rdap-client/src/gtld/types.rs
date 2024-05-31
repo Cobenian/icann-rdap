@@ -1,20 +1,15 @@
-
 use std::any::TypeId;
 
 // use icann_rdap_common::response::types::{
 //     Common, Event, Link, Links, Notices, ObjectCommon, PublicId, Remarks,
 // };
 
-use icann_rdap_common::response::types::{
-    Common, Link, Links, Notices, Remarks,
-};
+use icann_rdap_common::response::types::{Common, Link, Links, Notices, Remarks};
 
 use icann_rdap_common::response::types::{NoticeOrRemark, RdapConformance};
 use strum::EnumMessage;
 
-use icann_rdap_common::check::{
-    CheckParams, GetChecks,
-};
+use icann_rdap_common::check::{CheckParams, GetChecks};
 
 // use icann_rdap_common::check::{
 //     CheckClass, CheckItem, CheckParams, Checks, GetChecks, CHECK_CLASS_LEN,
@@ -26,7 +21,7 @@ use super::{FromGtld, ToGtld};
 
 impl ToGtld for RdapConformance {
     fn to_gtld(&self, params: GtldParams) -> String {
-        let mut gtld= String::new();
+        let mut gtld = String::new();
         gtld.push_str(
             &format!(
                 "{} Conformance Claims",
@@ -34,19 +29,14 @@ impl ToGtld for RdapConformance {
             )
             .to_string(),
         );
-        self.iter().for_each(|s| {
-          gtld.push_str(&format!(
-                "* {}\n",
-                s.0.replace('_', " ")
-                    .to_string()
-            ))
-        });
+        self.iter()
+            .for_each(|s| gtld.push_str(&format!("* {}\n", s.0.replace('_', " ").to_string())));
         self.get_checks(CheckParams::from_gtld_no_parent(params))
             .items
             .iter()
             .filter(|item| params.check_types.contains(&item.check_class))
             .for_each(|item| {
-              gtld.push_str(&format!(
+                gtld.push_str(&format!(
                     "* {}: {}\n",
                     item.check_class.to_string().to_string(),
                     item.check
@@ -54,14 +44,14 @@ impl ToGtld for RdapConformance {
                         .expect("Check has no message. Coding error.")
                 ))
             });
-            gtld.push('\n');
-            gtld
+        gtld.push('\n');
+        gtld
     }
 }
 
 impl ToGtld for Links {
     fn to_gtld(&self, gtldparams: GtldParams) -> String {
-        let mut gtld= String::new();
+        let mut gtld = String::new();
         self.iter()
             .for_each(|link| gtld.push_str(&link.to_gtld(gtldparams)));
         gtld
@@ -70,28 +60,28 @@ impl ToGtld for Links {
 
 impl ToGtld for Link {
     fn to_gtld(&self, params: GtldParams) -> String {
-        let mut gtld= String::new();
+        let mut gtld = String::new();
         if let Some(title) = &self.title {
-          gtld.push_str(&format!("* {title}: "));
+            gtld.push_str(&format!("* {title}: "));
         } else {
-          gtld.push_str("* Link: ")
+            gtld.push_str("* Link: ")
         };
         if let Some(rel) = &self.rel {
-          gtld.push_str(&format!("[{rel}] "));
+            gtld.push_str(&format!("[{rel}] "));
         };
         gtld.push_str(&self.href.to_owned().to_string());
         gtld.push(' ');
         if let Some(media_type) = &self.media_type {
-          gtld.push_str(&format!("of type '{media_type}' "));
+            gtld.push_str(&format!("of type '{media_type}' "));
         };
         if let Some(media) = &self.media {
-          gtld.push_str(&format!("to be used with {media} ",));
+            gtld.push_str(&format!("to be used with {media} ",));
         };
         if let Some(value) = &self.value {
-          gtld.push_str(&format!("for {value} ",));
+            gtld.push_str(&format!("for {value} ",));
         };
         if let Some(hreflang) = &self.hreflang {
-          gtld.push_str(&format!("in languages {}", hreflang.join(", ")));
+            gtld.push_str(&format!("in languages {}", hreflang.join(", ")));
         };
         gtld.push('\n');
         let checks = self.get_checks(CheckParams::from_gtld(params, TypeId::of::<Link>()));
@@ -103,19 +93,19 @@ impl ToGtld for Link {
 
 impl ToGtld for Notices {
     fn to_gtld(&self, params: GtldParams) -> String {
-        let mut gtld= String::new();
+        let mut gtld = String::new();
         self.iter()
             .for_each(|notice| gtld.push_str(&notice.0.to_gtld(params)));
-          gtld
+        gtld
     }
 }
 
 impl ToGtld for Remarks {
     fn to_gtld(&self, params: GtldParams) -> String {
-        let mut gtld= String::new();
+        let mut gtld = String::new();
         self.iter()
             .for_each(|remark| gtld.push_str(&remark.0.to_gtld(params)));
-          gtld
+        gtld
     }
 }
 
@@ -131,26 +121,29 @@ impl ToGtld for Option<Remarks> {
 
 impl ToGtld for NoticeOrRemark {
     fn to_gtld(&self, params: GtldParams) -> String {
-        let mut gtld= String::new();
+        let mut gtld = String::new();
         if let Some(title) = &self.title {
-          gtld.push_str(&format!("{}\n", title.to_string()));
+            gtld.push_str(&format!("{}\n", title.to_string()));
         };
         self.description
             .iter()
             .for_each(|s| gtld.push_str(&format!("> {}\n\n", s.trim())));
-        self.get_checks(CheckParams::from_gtld(params, TypeId::of::<NoticeOrRemark>()))
-            .items
-            .iter()
-            .filter(|item| params.check_types.contains(&item.check_class))
-            .for_each(|item| {
-              gtld.push_str(&format!(
-                    "* {}: {}\n",
-                    &item.check_class.to_string().to_string(),
-                    item.check
-                        .get_message()
-                        .expect("Check has no message. Coding error.")
-                ))
-            });
+        self.get_checks(CheckParams::from_gtld(
+            params,
+            TypeId::of::<NoticeOrRemark>(),
+        ))
+        .items
+        .iter()
+        .filter(|item| params.check_types.contains(&item.check_class))
+        .for_each(|item| {
+            gtld.push_str(&format!(
+                "* {}: {}\n",
+                &item.check_class.to_string().to_string(),
+                item.check
+                    .get_message()
+                    .expect("Check has no message. Coding error.")
+            ))
+        });
         if let Some(links) = &self.links {
             links
                 .iter()
@@ -163,11 +156,11 @@ impl ToGtld for NoticeOrRemark {
 
 impl ToGtld for Common {
     fn to_gtld(&self, params: GtldParams) -> String {
-        let mut gtld= String::new();
+        let mut gtld = String::new();
         let not_empty = self.rdap_conformance.is_some() || self.notices.is_some();
         if not_empty {
-          gtld.push('\n');
-          gtld.push_str("\n");
+            gtld.push('\n');
+            gtld.push_str("\n");
             let header_text = format!(
                 "Response from {} at {}",
                 params.req_data.source_type,
@@ -176,14 +169,14 @@ impl ToGtld for Common {
             gtld.push_str(&header_text.to_string());
         };
         if let Some(rdap_conformance) = &self.rdap_conformance {
-          gtld.push_str(&rdap_conformance.to_gtld(params));
+            gtld.push_str(&rdap_conformance.to_gtld(params));
         };
         if let Some(notices) = &self.notices {
-          gtld.push_str(&"Server Notices".to_string());
-          gtld.push_str(&notices.to_gtld(params));
+            gtld.push_str(&"Server Notices".to_string());
+            gtld.push_str(&notices.to_gtld(params));
         }
         if not_empty {
-          gtld.push_str("\n");
+            gtld.push_str("\n");
         };
         gtld
     }

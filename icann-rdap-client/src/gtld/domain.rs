@@ -1,10 +1,8 @@
 use std::any::TypeId;
 
-
 use icann_rdap_common::response::domain::Domain;
 // use icann_rdap_common::dns_types::{DnsAlgorithmType, DnsDigestType};
 // use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks};
-
 
 // use icann_rdap_common::dns_types::{DnsAlgorithmType, DnsDigestType};
 // use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks}
@@ -31,7 +29,6 @@ impl ToGtld for Domain {
         };
         gtld.push_str(&header_text);
         // dbg!(&self);
-
 
         // // common object stuff
         // table = self.object_common.add_to_mptable(table, params);

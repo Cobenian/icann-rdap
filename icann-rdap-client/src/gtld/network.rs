@@ -7,7 +7,6 @@ use icann_rdap_common::{
 
 use super::{GtldParams, ToGtld};
 
-
 impl ToGtld for Network {
     fn to_gtld(&self, params: GtldParams) -> String {
         let _typeid = TypeId::of::<Network>();

@@ -1,5 +1,5 @@
 use std::any::TypeId;
-// 
+//
 // use icann_rdap_common::contact::{NameParts, PostalAddress};
 use icann_rdap_common::response::entity::Entity;
 

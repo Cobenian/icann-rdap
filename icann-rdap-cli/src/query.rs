@@ -275,14 +275,16 @@ fn do_output<'a, W: std::io::Write>(
             )?;
         }
         OutputType::Gtld => {
-            writeln!(write, "{}", response.rdap.to_gtld(
-                GtldParams {
+            writeln!(
+                write,
+                "{}",
+                response.rdap.to_gtld(GtldParams {
                     root: &response.rdap,
                     parent_type: response.rdap.get_type(),
                     check_types: &processing_params.check_types,
                     req_data,
-                }
-            ))?;
+                })
+            )?;
         }
         _ => {
             info!("this here is no output type specified");

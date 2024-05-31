@@ -39,9 +39,7 @@ impl<'a> GtldParams<'a> {
     }
 
     pub fn next_level(&self) -> Self {
-        GtldParams {
-            ..*self
-        }
+        GtldParams { ..*self }
     }
 }
 
@@ -69,7 +67,6 @@ impl ToGtld for RdapResponse {
     }
 }
 
-
 pub(crate) fn checks_ul(checks: &Checks, params: GtldParams) -> String {
     let mut gtld = String::new();
     checks
@@ -79,9 +76,7 @@ pub(crate) fn checks_ul(checks: &Checks, params: GtldParams) -> String {
         .for_each(|item| {
             gtld.push_str(&format!(
                 "* {}: {}\n",
-                &item
-                    .check_class
-                    .to_string(),
+                &item.check_class.to_string(),
                 item.check
                     .get_message()
                     .expect("Check has no message. Coding error.")
