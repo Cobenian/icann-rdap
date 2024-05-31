@@ -1,17 +1,18 @@
-// use std::any::TypeId;
+use std::any::TypeId;
 
 use icann_rdap_common::{
     // check::{CheckParams, GetChecks, GetSubChecks},
     response::network::Network,
 };
 
-use super::ToGtld;
+use super::{GtldParams, ToGtld};
+
 
 impl ToGtld for Network {
-    fn to_gtld(&self) -> String {
-        // let typeid = TypeId::of::<Network>();
+    fn to_gtld(&self, params: GtldParams) -> String {
+        let _typeid = TypeId::of::<Network>();
         let mut gtld = String::new();
-        // gtld.push_str(&self.common.to_md());
+        gtld.push_str(&self.common.to_gtld(params));
         let header_text = if self.start_address.is_some() && self.end_address.is_some() {
             format!(
                 "IP Network {}-{}",

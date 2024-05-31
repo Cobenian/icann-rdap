@@ -1,18 +1,18 @@
-// use std::any::TypeId;
+use std::any::TypeId;
 
 use icann_rdap_common::response::nameserver::Nameserver;
 
 // use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks};
 
-use super::ToGtld;
+use super::{GtldParams, ToGtld};
 
 impl ToGtld for Nameserver {
-    fn to_gtld(&self) -> String {
-        // let typeid = TypeId::of::<Nameserver>();
+    fn to_gtld(&self, params: GtldParams) -> String {
+        let typeid = TypeId::of::<Nameserver>();
         let mut gtld = String::new();
 
         // other common stuff
-        // md.push_str(&self.common.to_gtld(params.from_parent(typeid)));
+        gtld.push_str(&self.common.to_gtld(params.from_parent(typeid)));
 
         // header
         let header_text = if let Some(unicode_name) = &self.unicode_name {

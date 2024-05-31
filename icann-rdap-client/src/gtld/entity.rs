@@ -1,5 +1,5 @@
-// use std::any::TypeId;
-
+use std::any::TypeId;
+// 
 // use icann_rdap_common::contact::{NameParts, PostalAddress};
 use icann_rdap_common::response::entity::Entity;
 
@@ -7,13 +7,14 @@ use icann_rdap_common::response::entity::Entity;
 
 // // use super::types::public_ids_to_table;
 // // use super::FromMd;
-use super::ToGtld;
+// use super::ToGtld;
+use super::{GtldParams, ToGtld};
 
 impl ToGtld for Entity {
-    fn to_gtld(&self) -> String {
-        // let typeid = TypeId::of::<Entity>();
+    fn to_gtld(&self, params: GtldParams) -> String {
+        let typeid = TypeId::of::<Entity>();
         let mut gtld = String::new();
-        // gtld.push_str(&self.common.to_gtld());
+        gtld.push_str(&self.common.to_gtld(params.from_parent(typeid)));
 
         // header
         let header_text = if let Some(roles) = &self.roles {

@@ -7,7 +7,7 @@ use tracing::error;
 use tracing::info;
 
 use icann_rdap_client::{
-    gtld::ToGtld,
+    gtld::{GtldParams, ToGtld},
     md::{redacted::replace_redacted_items, MdOptions, MdParams, ToMd},
     query::{qtype::QueryType, request::ResponseData},
     request::{RequestData, RequestResponse, RequestResponses, SourceType},
@@ -275,7 +275,14 @@ fn do_output<'a, W: std::io::Write>(
             )?;
         }
         OutputType::Gtld => {
-            writeln!(write, "{}", response.rdap.to_gtld())?;
+            writeln!(write, "{}", response.rdap.to_gtld(
+                GtldParams {
+                    root: &response.rdap,
+                    parent_type: response.rdap.get_type(),
+                    check_types: &processing_params.check_types,
+                    req_data,
+                }
+            ))?;
         }
         _ => {
             info!("this here is no output type specified");

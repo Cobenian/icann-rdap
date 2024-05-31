@@ -1,14 +1,14 @@
-// use std::any::TypeId;
+use std::any::TypeId;
 
 use icann_rdap_common::response::autnum::Autnum;
 
-use super::ToGtld;
+use super::{GtldParams, ToGtld};
 
 impl ToGtld for Autnum {
-    fn to_gtld(&self) -> String {
-        // let typeid = TypeId::of::<Autnum>();
+    fn to_gtld(&self, params: GtldParams) -> String {
+        let typeid = TypeId::of::<Autnum>();
         let mut gtld = String::new();
-        // gtld.push_str(&self.common.to_gtld());
+        gtld.push_str(&self.common.to_gtld(params.from_parent(typeid)));
         let header_text = if self.start_autnum.is_some() && self.end_autnum.is_some() {
             format!(
                 "Autonomous Systems {}-{}",

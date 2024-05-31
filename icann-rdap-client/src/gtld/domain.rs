@@ -1,30 +1,37 @@
-// use std::any::TypeId;
+use std::any::TypeId;
 
-// use icann_rdap_common::dns_types::{DnsAlgorithmType, DnsDigestType};
+
 use icann_rdap_common::response::domain::Domain;
-
+// use icann_rdap_common::dns_types::{DnsAlgorithmType, DnsDigestType};
 // use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks};
 
+
+// use icann_rdap_common::dns_types::{DnsAlgorithmType, DnsDigestType};
+// use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks}
+
 // use super::types::{events_to_table, links_to_table, public_ids_to_table};
-use super::ToGtld;
+// use super::FromGtld;
+use super::{GtldParams, ToGtld};
 
 impl ToGtld for Domain {
-    fn to_gtld(&self) -> String {
-        // let typeid = TypeId::of::<Domain>();
+    fn to_gtld(&self, params: GtldParams) -> String {
+        let typeid = TypeId::of::<Domain>();
         let mut gtld = String::new();
-        // gtld.push_str(&self.common.to_gtld());
+        gtld.push_str(&self.common.to_gtld(params.from_parent(typeid)));
 
         // header
         let header_text = if let Some(unicode_name) = &self.unicode_name {
-            format!("Domain Name: {unicode_name}")
+            format!("Domain Name (unicode): {unicode_name}")
         } else if let Some(ldh_name) = &self.ldh_name {
-            format!("Domain Name: {ldh_name}")
+            format!("Domain Name (ldh_name): {ldh_name}")
         } else if let Some(handle) = &self.object_common.handle {
-            format!("Domain Name: {handle}")
+            format!("Domain Name (handle): {handle}")
         } else {
             "Domain".to_string()
         };
         gtld.push_str(&header_text);
+        // dbg!(&self);
+
 
         // // common object stuff
         // table = self.object_common.add_to_mptable(table, params);

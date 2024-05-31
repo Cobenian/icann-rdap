@@ -1,13 +1,14 @@
 // use std::str::FromStr;
+// use std::any::TypeId;
 
 use icann_rdap_common::response::redacted::Redacted;
 // use jsonpath_lib as jsonpath;
 
-use super::ToGtld;
+use super::{GtldParams, ToGtld};
 // use icann_rdap_common::response::RdapResponse;
 
 impl ToGtld for &[Redacted] {
-    fn to_gtld(&self) -> String {
+    fn to_gtld(&self, _params: GtldParams) -> String {
         let mut gtld = String::new();
 
         // header
