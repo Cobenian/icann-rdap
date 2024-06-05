@@ -398,8 +398,6 @@ pub async fn main() -> anyhow::Result<()> {
         OtypeArg::Gtld => OutputType::Gtld,
     };
 
-    dbg!(output_type);
-
     let check_types = if cli.check_type.is_empty() {
         vec![
             CheckClass::Informational,

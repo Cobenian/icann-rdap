@@ -95,7 +95,7 @@ impl ToGtld for Domain {
         //     gtld.push('\n');
         // }
         // dump out self.object_common.entities
-        dbg!(&self.object_common.entities);
+        // dbg!(&self.object_common.entities);
         let mut registrar_name = String::new();
         let mut registrar_iana_id = String::new();
         let mut abuse_contact_email = String::new();

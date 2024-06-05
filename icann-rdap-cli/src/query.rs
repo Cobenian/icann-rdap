@@ -2,7 +2,7 @@ use icann_rdap_common::check::traverse_checks;
 use icann_rdap_common::check::CheckClass;
 use icann_rdap_common::check::CheckParams;
 use icann_rdap_common::check::GetChecks;
-use serde_json::Value;
+// use serde_json::Value;
 use tracing::error;
 use tracing::info;
 
@@ -324,7 +324,7 @@ fn do_final_output<W: std::io::Write>(
     match processing_params.output_type {
         OutputType::Json => {
             for req_res in &transactions {
-                info!("RDAP JSON: {:?}", &req_res.res_data.rdap);
+                // info!("RDAP JSON: {:?}", &req_res.res_data.rdap);
                 dbg!(&req_res.res_data.rdap);
                 writeln!(
                     write,
@@ -334,7 +334,7 @@ fn do_final_output<W: std::io::Write>(
             }
         }
         OutputType::PrettyJson => {
-            info!("Pretty RDAP JSON in output");
+            // info!("Pretty RDAP JSON in output");
             for req_res in &transactions {
                 writeln!(
                     write,
@@ -344,24 +344,25 @@ fn do_final_output<W: std::io::Write>(
             }
         }
         OutputType::JsonExtra => {
-            info!("Extra RDAP JSON in output");
+            // info!("Extra RDAP JSON in output");
             writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
         }
         OutputType::Gtld => {
-            info!("GTLD in the front spot");
-            for req_res in &transactions {
-                let json_str = serde_json::to_string(&req_res.res_data.rdap).unwrap();
-                let v: Value = serde_json::from_str(&json_str).unwrap();
-                print_flattened_json(&v, String::new());
-                // for (key, value) in v.as_object().unwrap() {
-                //     println!("Key {}: Value: {}\n", key, value);
-                // }
-                // // writeln!(
-                //     write,
-                //     "{}",
-                //     req_res.res_data.rdap.unwrap_or("No GTLD found")
-                // )?;
-            }
+            // do nothing
+            // info!("GTLD in the front spot");
+            // for req_res in &transactions {
+            // let json_str = serde_json::to_string(&req_res.res_data.rdap).unwrap();
+            // let v: Value = serde_json::from_str(&json_str).unwrap();
+            // print_flattened_json(&v, String::new());
+            // for (key, value) in v.as_object().unwrap() {
+            //     println!("Key {}: Value: {}\n", key, value);
+            // }
+            // // writeln!(
+            //     write,
+            //     "{}",
+            //     req_res.res_data.rdap.unwrap_or("No GTLD found")
+            // )?;
+            // }
         }
         _ => {
             info!("No output type specified");
@@ -423,18 +424,18 @@ fn get_related_link(rdap_response: &RdapResponse) -> Vec<&str> {
     }
 }
 
-fn print_flattened_json(value: &Value, prefix: String) {
-    match value {
-        Value::Object(map) => {
-            for (key, value) in map {
-                print_flattened_json(value, format!("{}{}.", prefix, key));
-            }
-        }
-        Value::Array(arr) => {
-            for (index, value) in arr.iter().enumerate() {
-                print_flattened_json(value, format!("{}[{}].", prefix, index));
-            }
-        }
-        _ => println!("{}: {}", prefix, value),
-    }
-}
+// fn print_flattened_json(value: &Value, prefix: String) {
+//     match value {
+//         Value::Object(map) => {
+//             for (key, value) in map {
+//                 print_flattened_json(value, format!("{}{}.", prefix, key));
+//             }
+//         }
+//         Value::Array(arr) => {
+//             for (index, value) in arr.iter().enumerate() {
+//                 print_flattened_json(value, format!("{}[{}].", prefix, index));
+//             }
+//         }
+//         _ => println!("{}: {}", prefix, value),
+//     }
+// }
