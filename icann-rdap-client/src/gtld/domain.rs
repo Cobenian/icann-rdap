@@ -95,7 +95,7 @@ impl ToGtld for Domain {
         //     gtld.push('\n');
         // }
         // dump out self.object_common.entities
-        // dbg!(&self.object_common.entities);
+        dbg!(&self.object_common.entities);
         let mut registrar_name = String::new();
         let mut registrar_iana_id = String::new();
         let mut abuse_contact_email = String::new();
@@ -111,8 +111,7 @@ impl ToGtld for Domain {
                                     for property in properties {
                                         if let Some(property) = property.as_array() {
                                             if property[0].as_str().unwrap_or("") == "fn" {
-                                                registrar_name =
-                                                    property[3].as_str().unwrap_or("").to_string();
+                                                registrar_name = property[3].as_str().unwrap_or("").to_string();
                                             }
                                         }
                                     }
@@ -125,18 +124,24 @@ impl ToGtld for Domain {
                                     }
                                 }
                             }
-                        } else if role.as_str() == "abuse" {
-                            if let Some(vcard_array) = &entity.vcard_array {
-                                if let Some(properties) = vcard_array[1].as_array() {
-                                    for property in properties {
-                                        if let Some(property) = property.as_array() {
-                                            if property[0].as_str().unwrap_or("") == "tel" {
-                                                abuse_contact_phone =
-                                                    property[3].as_str().unwrap_or("").to_string();
-                                            } else if property[0].as_str().unwrap_or("") == "email"
-                                            {
-                                                abuse_contact_email =
-                                                    property[3].as_str().unwrap_or("").to_string();
+                            if let Some(entities) = &entity.object_common.entities {
+                                for entity in entities {
+                                    if let Some(roles) = &entity.roles {
+                                        for role in roles {
+                                            if role.as_str() == "abuse" {
+                                                if let Some(vcard_array) = &entity.vcard_array {
+                                                    if let Some(properties) = vcard_array[1].as_array() {
+                                                        for property in properties {
+                                                            if let Some(property) = property.as_array() {
+                                                                if property[0].as_str().unwrap_or("") == "tel" {
+                                                                    abuse_contact_phone = property[3].as_str().unwrap_or("").to_string();
+                                                                } else if property[0].as_str().unwrap_or("") == "email" {
+                                                                    abuse_contact_email = property[3].as_str().unwrap_or("").to_string();
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
