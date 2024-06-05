@@ -20,6 +20,48 @@ pub mod string;
 pub mod table;
 pub mod types;
 
+pub(crate) const _CODE_INDENT: &str = "    ";
+
+pub(crate) const HR: &str = "\n";
+
+/// Specifies options for generating markdown.
+pub struct GtldOptions {
+    /// If true, do not use Unicode characters.
+    pub no_unicode_chars: bool,
+
+    /// The character used for text styling of bold and italics.
+    pub text_style_char: char,
+
+    /// If true, headers use the hash marks or under lines.
+    pub hash_headers: bool,
+
+    /// If true, the text_style_char will appear in a justified text.
+    pub style_in_justify: bool,
+}
+
+impl Default for GtldOptions {
+    fn default() -> Self {
+        GtldOptions {
+            no_unicode_chars: false,
+            text_style_char: '*',
+            hash_headers: true,
+            style_in_justify: false,
+        }
+    }
+}
+
+impl GtldOptions {
+    /// Defaults for markdown that looks more like plain text.
+    pub fn plain_text() -> Self {
+        GtldOptions {
+            no_unicode_chars: true,
+            text_style_char: '_',
+            hash_headers: false,
+            style_in_justify: true,
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct GtldParams<'a> {
     pub root: &'a RdapResponse,

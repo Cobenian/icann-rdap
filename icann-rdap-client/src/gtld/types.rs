@@ -1,16 +1,17 @@
 use std::any::TypeId;
 
-// use icann_rdap_common::response::types::{
-//     Common, Event, Link, Links, Notices, ObjectCommon, PublicId, Remarks,
-// };
+use icann_rdap_common::response::types::{
+    Common, Event, Link, Links, Notices, ObjectCommon, Remarks,
+};
 
-use icann_rdap_common::response::types::{Common, Link, Links, Notices, Remarks};
+// use icann_rdap_common::response::types::{Common, Link, Links, Notices, ObjectCommon, Remarks};
 
 use icann_rdap_common::response::types::{NoticeOrRemark, RdapConformance};
 use strum::EnumMessage;
 
+use super::string::StringUtil;
+use super::table::{MultiPartTable, ToGtldTable};
 use icann_rdap_common::check::{CheckParams, GetChecks};
-
 // use icann_rdap_common::check::{
 //     CheckClass, CheckItem, CheckParams, Checks, GetChecks, CHECK_CLASS_LEN,
 // };
@@ -182,35 +183,44 @@ impl ToGtld for Common {
     }
 }
 
-// impl ToMpTable for ObjectCommon {
-//     fn add_to_mptable(&self, mut table: MultiPartTable, params: GtldParams) -> MultiPartTable {
-//         if self.status.is_some() || self.port_43.is_some() {
-//             table = table.header_ref(&"Information");
+impl ToGtldTable for ObjectCommon {
+    fn add_to_gtldtable(&self, mut table: MultiPartTable, _params: GtldParams) -> MultiPartTable {
+        if self.status.is_some() || self.port_43.is_some() {
+            // table = table.header_ref(&"Information");
+            // Status
+            if let Some(status) = &self.status {
+                for value in status {
+                    table = table.data_ul(&"Domain Status: ", vec![value.0.to_string()]);
+                }
+            }
 
-//             // Status
-//             if let Some(status) = &self.status {
-//                 let values = status.iter().map(|v| v.0.as_str()).collect::<Vec<&str>>();
-//                 table = table.data_ul(&"Status", values.make_list_all_title_case());
-//             }
+            // Port 43
+            if let Some(port_43) = &self.port_43 {
+                if !port_43.is_empty() {
+                    table = table.and_data_ref(&"Registrar Whois Server: ", &self.port_43);
+                }
+            }
+        }
+        // table = table.and_data_ref(&"Registrar Whois Server: ", &self.port_43);
+        // Events
+        // if let Some(events) = &self.events {
+        //     for event in events {
+        //         table = table.data_ul(&"Event Action", vec![event.event_action.clone()]);
+        //         if let Some(event_date) = &event.event_date {
+        //             table = table.data_ul(&"Event Date", vec![event_date.clone()]);
+        //         }
+        //     }
+        // }
 
-//             // Port 43
-//             table = table.and_data_ref(&"Whois", &self.port_43);
-//         }
+        // Links
+        // if let Some(links) = &self.links {
+        //     table = links_to_table(links, table, "Links");
+        // }
 
-//         // Events
-//         if let Some(events) = &self.events {
-//             table = events_to_table(events, table, "Events", params);
-//         }
-
-//         // Links
-//         if let Some(links) = &self.links {
-//             table = links_to_table(links, table, "Links");
-//         }
-
-//         // TODO Checks
-//         table
-//     }
-// }
+        // TODO Checks
+        table
+    }
+}
 
 // pub(crate) fn public_ids_to_table(
 //     publid_ids: &[PublicId],
@@ -222,63 +232,63 @@ impl ToGtld for Common {
 //     table
 // }
 
-// pub(crate) fn events_to_table(
-//     events: &[Event],
-//     mut table: MultiPartTable,
-//     header_name: &str,
-//     params: GtldParams,
-// ) -> MultiPartTable {
-//     table = table.header_ref(&header_name.to_string());
-//     for event in events {
-//         let event_date = &event
-//             .event_date
-//             .to_owned()
-//             .unwrap_or("????".to_string())
-//             .format_date_time(params)
-//             .unwrap_or_default();
-//         let mut ul: Vec<&String> = vec![event_date];
-//         if let Some(event_actor) = &event.event_actor {
-//             ul.push(event_actor);
-//         }
-//         table = table.data_ul_ref(&event.event_action.to_owned().to_words_title_case(), ul);
-//     }
-//     table
-// }
+pub(crate) fn events_to_table(
+    events: &[Event],
+    mut table: MultiPartTable,
+    header_name: &str,
+    params: GtldParams,
+) -> MultiPartTable {
+    table = table.header_ref(&header_name.to_string());
+    for event in events {
+        let event_date = &event
+            .event_date
+            .to_owned()
+            .unwrap_or("????".to_string())
+            .format_date_time(params)
+            .unwrap_or_default();
+        let mut ul: Vec<&String> = vec![event_date];
+        if let Some(event_actor) = &event.event_actor {
+            ul.push(event_actor);
+        }
+        table = table.data_ul_ref(&event.event_action.to_owned().to_words_title_case(), ul);
+    }
+    table
+}
 
-// pub(crate) fn links_to_table(
-//     links: &[Link],
-//     mut table: MultiPartTable,
-//     header_name: &str,
-// ) -> MultiPartTable {
-//     table = table.header_ref(&header_name.to_string());
-//     for link in links {
-//         if let Some(title) = &link.title {
-//             table = table.data_ref(&"Title", &title.trim());
-//         };
-//         let rel = link
-//             .rel
-//             .as_ref()
-//             .unwrap_or(&"Link".to_string())
-//             .to_title_case();
-//         let mut ul: Vec<&String> = vec![&link.href];
-//         if let Some(media_type) = &link.media_type {
-//             ul.push(media_type)
-//         };
-//         if let Some(media) = &link.media {
-//             ul.push(media)
-//         };
-//         if let Some(value) = &link.value {
-//             ul.push(value)
-//         };
-//         let hreflang_s;
-//         if let Some(hreflang) = &link.hreflang {
-//             hreflang_s = hreflang.join(", ");
-//             ul.push(&hreflang_s)
-//         };
-//         table = table.data_ul_ref(&rel, ul);
-//     }
-//     table
-// }
+pub(crate) fn links_to_table(
+    links: &[Link],
+    mut table: MultiPartTable,
+    header_name: &str,
+) -> MultiPartTable {
+    table = table.header_ref(&header_name.to_string());
+    for link in links {
+        if let Some(title) = &link.title {
+            table = table.data_ref(&"Title", &title.trim());
+        };
+        let rel = link
+            .rel
+            .as_ref()
+            .map(|s| s.clone())
+            .unwrap_or_else(|| "Link".to_string());
+        let mut ul: Vec<&String> = vec![&link.href];
+        if let Some(media_type) = &link.media_type {
+            ul.push(media_type)
+        };
+        if let Some(media) = &link.media {
+            ul.push(media)
+        };
+        if let Some(value) = &link.value {
+            ul.push(value)
+        };
+        let hreflang_s;
+        if let Some(hreflang) = &link.hreflang {
+            hreflang_s = hreflang.join(", ");
+            ul.push(&hreflang_s)
+        };
+        table = table.data_ul_ref(&rel, ul);
+    }
+    table
+}
 
 // pub(crate) fn checks_to_table(
 //     checks: Vec<Checks>,

@@ -16,13 +16,13 @@ impl ToGtld for Nameserver {
 
         // header
         let header_text = if let Some(unicode_name) = &self.unicode_name {
-            format!("Nameserver {unicode_name}")
+            format!("Name Server: {unicode_name}")
         } else if let Some(ldh_name) = &self.ldh_name {
-            format!("Nameserver {ldh_name}")
+            format!("Name Server: {ldh_name}")
         } else if let Some(handle) = &self.object_common.handle {
-            format!("Nameserver {handle}")
+            format!("Name Server: {handle}")
         } else {
-            "Domain".to_string()
+            "Name Server".to_string()
         };
         gtld.push_str(&header_text);
 
@@ -60,7 +60,7 @@ impl ToGtld for Nameserver {
         // md.push_str(&self.object_common.remarks.to_md(params.from_parent(typeid)));
 
         // only other object classes from here
-        gtld.push_str("\n");
+        // gtld.push_str("\n");
 
         // entities
         // md.push_str(

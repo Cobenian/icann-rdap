@@ -1,0 +1,188 @@
+{
+  "rdapConformance": [
+    "rdap_level_0",
+    "icann_rdap_technical_implementation_guide_0",
+    "icann_rdap_response_profile_0"
+  ],
+  "notices": [
+    {
+      "title": "Terms of Use",
+      "description": [
+        "Service subject to Terms of Use."
+      ],
+      "links": [
+        {
+          "href": "https://www.verisign.com/domain-names/registration-data-access-protocol/terms-service/index.xhtml",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "Status Codes",
+      "description": [
+        "For more information on domain status codes, please visit https://icann.org/epp"
+      ],
+      "links": [
+        {
+          "href": "https://icann.org/epp",
+          "type": "text/html"
+        }
+      ]
+    },
+    {
+      "title": "RDDS Inaccuracy Complaint Form",
+      "description": [
+        "URL of the ICANN RDDS Inaccuracy Complaint Form: https://icann.org/wicf"
+      ],
+      "links": [
+        {
+          "href": "https://icann.org/wicf",
+          "type": "text/html"
+        }
+      ]
+    }
+  ],
+  "objectClassName": "domain",
+  "handle": "2703255_DOMAIN_COM-VRSN",
+  "links": [
+    {
+      "value": "https://rdap.verisign.com/com/v1/domain/VERISIGN.COM",
+      "rel": "self",
+      "href": "https://rdap.verisign.com/com/v1/domain/VERISIGN.COM",
+      "type": "application/rdap+json"
+    },
+    {
+      "value": "https://apis.cscglobal.com/dbs/rdap-api/v1/domain/VERISIGN.COM",
+      "rel": "related",
+      "href": "https://apis.cscglobal.com/dbs/rdap-api/v1/domain/VERISIGN.COM",
+      "type": "application/rdap+json"
+    }
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "1995-06-02T04:00:00Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2025-06-01T04:00:00Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2024-05-28T05:18:51Z"
+    },
+    {
+      "eventAction": "last update of RDAP database",
+      "eventDate": "2024-05-31T18:09:04Z"
+    }
+  ],
+  "status": [
+    "client delete prohibited",
+    "client transfer prohibited",
+    "client update prohibited",
+    "server delete prohibited",
+    "server transfer prohibited",
+    "server update prohibited"
+  ],
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "handle": "299",
+      "entities": [
+        {
+          "objectClassName": "entity",
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                ""
+              ],
+              [
+                "tel",
+                {
+                  "type": "voice"
+                },
+                "uri",
+                "tel:8887802723"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "domainabuse@cscglobal.com"
+              ]
+            ]
+          ],
+          "roles": [
+            "abuse"
+          ]
+        }
+      ],
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "CSC Corporate Domains, Inc."
+          ]
+        ]
+      ],
+      "roles": [
+        "registrar"
+      ],
+      "publicIds": [
+        {
+          "type": "IANA Registrar ID",
+          "identifier": "299"
+        }
+      ]
+    }
+  ],
+  "ldhName": "VERISIGN.COM",
+  "secureDNS": {
+    "delegationSigned": true,
+    "dsData": [
+      {
+        "keyTag": 55204,
+        "algorithm": 8,
+        "digest": "206D88653C43D99BF4567BBD7DF9C078DB357F59AA183741024D345723052E88",
+        "digestType": 2
+      }
+    ]
+  },
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "AV1.NSTLD.COM"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "AV2.NSTLD.COM"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "AV3.NSTLD.COM"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "AV4.NSTLD.COM"
+    }
+  ]
+}

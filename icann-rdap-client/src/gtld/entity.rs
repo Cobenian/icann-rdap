@@ -1,14 +1,6 @@
-use std::any::TypeId;
-//
-// use icann_rdap_common::contact::{NameParts, PostalAddress};
-use icann_rdap_common::response::entity::Entity;
-
-// // use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks};
-
-// // use super::types::public_ids_to_table;
-// // use super::FromMd;
-// use super::ToGtld;
 use super::{GtldParams, ToGtld};
+use icann_rdap_common::response::entity::Entity;
+use std::any::TypeId;
 
 impl ToGtld for Entity {
     fn to_gtld(&self, params: GtldParams) -> String {
@@ -24,79 +16,31 @@ impl ToGtld for Entity {
         };
         gtld.push_str(&header_text);
 
-        // multipart data
-        // let mut table = MultiPartTable::new();
-
-        // // identifiers
-        // table = table
-        //     .header_ref(&"Identifiers")
-        //     .and_data_ref(&"Handle", &self.object_common.handle);
-        // if let Some(public_ids) = &self.public_ids {
-        //     table = public_ids_to_table(public_ids, table);
-        // }
-
-        //         if let Some(contact) = self.contact() {
-        //             table = table
-        //                 .header_ref(&"Contact")
-        //                 .and_data_ref_maybe(&"Kind", &contact.kind)
-        //                 .and_data_ref_maybe(&"Full Name", &contact.full_name)
-        //                 .and_data_ul(&"Titles", contact.titles)
-        //                 .and_data_ul(&"Nicknames", contact.nick_names)
-        //                 .and_data_ul(&"Organization Names", contact.organization_names)
-        //                 .and_data_ul(&"Languages", contact.langs)
-        //                 .and_data_ul(&"Phones", contact.phones)
-        //                 .and_data_ul(&"Emails", contact.emails);
-        //             table = contact.postal_addresses.add_to_mptable(table, params);
-        //             table = contact.name_parts.add_to_mptable(table, params)
-        //         }
-
-        //         // common object stuff
-        //         table = self.object_common.add_to_mptable(table, params);
-
-        //         // checks
-        //         let check_params = CheckParams::from_md(params, typeid);
-        //         let mut checks = self.object_common.get_sub_checks(check_params);
-        //         checks.push(self.get_checks(check_params));
-        //         table = checks_to_table(checks, table, params);
-
-        //         // render table
-        //         md.push_str(&table.to_md(params));
-
-        //         // remarks
-        //         md.push_str(&self.object_common.remarks.to_md(params.from_parent(typeid)));
-
-        //         // only other object classes from here
-        //         md.push_str(HR);
-
-        //         // entities
-        //         md.push_str(
-        //             &self
-        //                 .object_common
-        //                 .entities
-        //                 .to_md(params.from_parent(typeid)),
-        //         );
-
-        //         // redacted
-        //         if let Some(redacted) = &self.object_common.redacted {
-        //             md.push_str(&redacted.as_slice().to_md(params.from_parent(typeid)));
-        //         }
-
         gtld.push('\n');
         gtld
     }
 }
 
-// impl ToMd for Option<Vec<Entity>> {
-//     fn to_md(&self, params: MdParams) -> String {
-//         let mut md = String::new();
-//         if let Some(entities) = &self {
-//             entities
-//                 .iter()
-//                 .for_each(|entity| md.push_str(&entity.to_md(params.next_level())));
-//         }
-//         md
-//     }
-// }
+impl ToGtld for Option<Vec<Entity>> {
+    fn to_gtld(&self, params: GtldParams) -> String {
+        let mut md = String::new();
+        if let Some(entities) = &self {
+            entities
+                .iter()
+                .for_each(|entity| md.push_str(&entity.to_gtld(params.next_level())));
+        }
+        md
+    }
+}
+
+impl ToGtld for Vec<Entity> {
+    fn to_gtld(&self, params: GtldParams) -> String {
+        let mut md = String::new();
+        self.iter()
+            .for_each(|entity| md.push_str(&entity.to_gtld(params.next_level())));
+        md
+    }
+}
 
 // impl ToMpTable for Option<Vec<PostalAddress>> {
 //     fn add_to_mptable(&self, mut table: MultiPartTable, params: MdParams) -> MultiPartTable {

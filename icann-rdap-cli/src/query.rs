@@ -118,6 +118,7 @@ async fn do_domain_query<'a, W: std::io::Write>(
                             source_host: &regr_source_host,
                             source_type: SourceType::DomainRegistrar,
                         };
+                        info!("Outputting registrar data");
                         transactions = do_output(
                             processing_params,
                             &regr_req_data,
@@ -126,7 +127,11 @@ async fn do_domain_query<'a, W: std::io::Write>(
                             transactions,
                         )?;
                     }
-                    Err(error) => return Err(error),
+                    Err(_error) => {
+                        info!("Error querying registrar data");
+                        // dbg!(&error);
+                        // return Err(error)
+                    }
                 }
             }
             info!("Final output");
@@ -229,6 +234,7 @@ fn do_output<'a, W: std::io::Write>(
 ) -> Result<RequestResponses<'a>, CliError> {
     match processing_params.output_type {
         OutputType::RenderedMarkdown => {
+            info!("Rendered Markdown in output");
             let mut skin = MadSkin::default_dark();
             skin.set_headers_fg(Yellow);
             skin.headers[1].align = Alignment::Center;
@@ -257,6 +263,7 @@ fn do_output<'a, W: std::io::Write>(
             )?;
         }
         OutputType::Markdown => {
+            info!("Markdown in output");
             writeln!(
                 write,
                 "{}",
@@ -275,6 +282,7 @@ fn do_output<'a, W: std::io::Write>(
             )?;
         }
         OutputType::Gtld => {
+            // info!("GTLD in output");
             writeln!(
                 write,
                 "{}",
@@ -288,6 +296,8 @@ fn do_output<'a, W: std::io::Write>(
         }
         _ => {
             info!("this here is no output type specified");
+            // writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
+            // dbg!(response);
         } // do nothing
     };
 
@@ -314,6 +324,8 @@ fn do_final_output<W: std::io::Write>(
     match processing_params.output_type {
         OutputType::Json => {
             for req_res in &transactions {
+                info!("RDAP JSON: {:?}", &req_res.res_data.rdap);
+                dbg!(&req_res.res_data.rdap);
                 writeln!(
                     write,
                     "{}",
@@ -322,6 +334,7 @@ fn do_final_output<W: std::io::Write>(
             }
         }
         OutputType::PrettyJson => {
+            info!("Pretty RDAP JSON in output");
             for req_res in &transactions {
                 writeln!(
                     write,
@@ -331,20 +344,19 @@ fn do_final_output<W: std::io::Write>(
             }
         }
         OutputType::JsonExtra => {
+            info!("Extra RDAP JSON in output");
             writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
         }
         OutputType::Gtld => {
             info!("GTLD in the front spot");
-            println!("GTLD in the front spot");
             for req_res in &transactions {
-                println!("GTLD in the right spot");
                 let json_str = serde_json::to_string(&req_res.res_data.rdap).unwrap();
                 let v: Value = serde_json::from_str(&json_str).unwrap();
-                println!("GTLD: {}", v["ldhName"]);
-                for (key, value) in v.as_object().unwrap() {
-                    println!("{}: {}", key, value);
-                }
-                // writeln!(
+                print_flattened_json(&v, String::new());
+                // for (key, value) in v.as_object().unwrap() {
+                //     println!("Key {}: Value: {}\n", key, value);
+                // }
+                // // writeln!(
                 //     write,
                 //     "{}",
                 //     req_res.res_data.rdap.unwrap_or("No GTLD found")
@@ -353,6 +365,7 @@ fn do_final_output<W: std::io::Write>(
         }
         _ => {
             info!("No output type specified");
+            writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
         } // do nothing
     };
 
@@ -407,5 +420,21 @@ fn get_related_link(rdap_response: &RdapResponse) -> Vec<&str> {
         urls
     } else {
         Vec::new()
+    }
+}
+
+fn print_flattened_json(value: &Value, prefix: String) {
+    match value {
+        Value::Object(map) => {
+            for (key, value) in map {
+                print_flattened_json(value, format!("{}{}.", prefix, key));
+            }
+        }
+        Value::Array(arr) => {
+            for (index, value) in arr.iter().enumerate() {
+                print_flattened_json(value, format!("{}[{}].", prefix, index));
+            }
+        }
+        _ => println!("{}: {}", prefix, value),
     }
 }
