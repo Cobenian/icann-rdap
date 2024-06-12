@@ -1,6 +1,6 @@
-use std::any::TypeId;
-use icann_rdap_common::response::nameserver::Nameserver;
 use super::{GtldParams, ToGtld};
+use icann_rdap_common::response::nameserver::Nameserver;
+use std::any::TypeId;
 
 impl ToGtld for Nameserver {
     fn to_gtld(&self, params: GtldParams) -> String {

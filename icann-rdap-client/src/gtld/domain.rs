@@ -1,6 +1,4 @@
-use super::{
-    GtldParams, ToGtld,
-};
+use super::{GtldParams, ToGtld};
 // use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks};
 use icann_rdap_common::response::domain::Domain;
 use std::any::TypeId;
@@ -191,7 +189,7 @@ impl ToGtld for Domain {
                 }
             }
         }
-        
+
         gtld.push_str(
             "URL of the ICANN Whois Inaccuracy Complaint Form: https://www.icann.org/wicf/\n",
         );

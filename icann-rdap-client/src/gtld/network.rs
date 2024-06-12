@@ -1,6 +1,6 @@
-use std::any::TypeId;
-use icann_rdap_common::response::network::Network;
 use super::{GtldParams, ToGtld};
+use icann_rdap_common::response::network::Network;
+use std::any::TypeId;
 
 impl ToGtld for Network {
     fn to_gtld(&self, params: GtldParams) -> String {
