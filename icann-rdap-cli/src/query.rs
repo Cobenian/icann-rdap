@@ -2,7 +2,6 @@ use icann_rdap_common::check::traverse_checks;
 use icann_rdap_common::check::CheckClass;
 use icann_rdap_common::check::CheckParams;
 use icann_rdap_common::check::GetChecks;
-use serde_json::Value;
 use tracing::error;
 use tracing::info;
 
@@ -347,24 +346,7 @@ fn do_final_output<W: std::io::Write>(
             // info!("Extra RDAP JSON in output");
             writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
         }
-        OutputType::Gtld => {
-            // do nothing
-            // info!("GTLD in the front spot");
-            // for req_res in &transactions {
-            //     0;
-            // let json_str = serde_json::to_string(&req_res.res_data.rdap).unwrap();
-            // let v: Value = serde_json::from_str(&json_str).unwrap();
-            // print_flattened_json(&v, String::new());
-            // for (key, value) in v.as_object().unwrap() {
-            //     println!("Key {}: Value: {}\n", key, value);
-            // }
-            // // writeln!(
-            //     write,
-            //     "{}",
-            //     req_res.res_data.rdap.unwrap_or("No GTLD found")
-            // )?;
-            // }
-        }
+        OutputType::Gtld => { }
         _ => {
             info!("No output type specified");
             writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
@@ -422,21 +404,5 @@ fn get_related_link(rdap_response: &RdapResponse) -> Vec<&str> {
         urls
     } else {
         Vec::new()
-    }
-}
-
-fn print_flattened_json(value: &Value, prefix: String) {
-    match value {
-        Value::Object(map) => {
-            for (key, value) in map {
-                print_flattened_json(value, format!("{}{}.", prefix, key));
-            }
-        }
-        Value::Array(arr) => {
-            for (index, value) in arr.iter().enumerate() {
-                print_flattened_json(value, format!("{}[{}].", prefix, index));
-            }
-        }
-        _ => println!("{}: {}", prefix, value),
     }
 }

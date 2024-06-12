@@ -78,19 +78,39 @@ impl ToGtld for Domain {
         let mut registrar_iana_id = String::new();
         let mut abuse_contact_email = String::new();
         let mut abuse_contact_phone = String::new();
+        let mut registrar_adr = String::new();
 
         if let Some(entities) = &self.object_common.entities {
             for entity in entities {
                 if let Some(roles) = &entity.roles {
                     for role in roles {
                         if role.as_str() == "registrar" {
+                            // dbg!(&entity.vcard_array);
                             if let Some(vcard_array) = &entity.vcard_array {
-                                if let Some(properties) = vcard_array[1].as_array() {
-                                    for property in properties {
-                                        if let Some(property) = property.as_array() {
-                                            if property[0].as_str().unwrap_or("") == "fn" {
-                                                registrar_name =
-                                                    property[3].as_str().unwrap_or("").to_string();
+                                for vcard in vcard_array.iter() {
+                                    if let Some(properties) = vcard.as_array() {
+                                        for property in properties {
+                                            if let Some(property) = property.as_array() {
+                                                if property[0].as_str().unwrap_or("") == "fn" {
+                                                    registrar_name = property[3].as_str().unwrap_or("").to_string();
+                                                }
+                                            }
+                                            if property[0].as_str().unwrap_or("") == "adr" {
+                                                if let Some(address_components) = property[3].as_array() {
+                                                    if address_components.len() >= 7 { // Ensure there are at least 7 elements
+                                                        // Include all elements before city as part of the street address
+                                                        let street_end_index = address_components.len() - 4; // Exclude city, state, postal code, and country
+                                                        let street = address_components[0..street_end_index].iter().filter_map(|s| s.as_str()).collect::<Vec<&str>>().join(" ");
+                                                        let city = address_components.get(street_end_index).and_then(|s| s.as_str()).unwrap_or("");
+                                                        let state = address_components.get(street_end_index + 1).and_then(|s| s.as_str()).unwrap_or("");
+                                                        let postal_code = address_components.get(street_end_index + 2).and_then(|s| s.as_str()).unwrap_or("");
+                                                        let country = address_components.get(street_end_index + 3).and_then(|s| s.as_str()).unwrap_or("");
+                                                        registrar_adr = format!(
+                                                            "Registrar Street: {}\nRegistrar City: {}\nRegistrar State/Province: {}\nRegistrar Postal Code: {}\nRegistrar Country: {}\n",
+                                                            street, city, state, postal_code, country
+                                                        );
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -146,16 +166,48 @@ impl ToGtld for Domain {
                                     }
                                 }
                             }
+                        } // if the role is registrar
+                        if role.as_str() == "technical" {
+                            println!("Technical: FOUND!\n");
+                            // dbg!(&entity.vcard_array);
+
+                            // 
+                        }
+                        if role.as_str() == "administrative" {
+                            println!("Administrative: FOUND!\n");
+                            // dbg!(&entity.vcard_array);
+
+                            // 
+                        }
+                        if role.as_str() == "registrant" {
+                            println!("Registrant: FOUND!\n");
+                            // dbg!(&entity.vcard_array);
+
+                            // 
                         }
                     }
                 }
             }
         }
 
-        let formatted_data = format!(
-            "Registrar: {}\nRegistrar IANA ID: {}\nRegistrar Abuse Contact Email: {}\nRegistrar Abuse Contact Phone: {}\n",
-            registrar_name, registrar_iana_id, abuse_contact_email, abuse_contact_phone
-        );
+        // format the registrar and abuse contact data
+        let mut formatted_data = String::new();
+
+        if !registrar_name.is_empty() {
+            formatted_data += &format!("Registrar: {}\n", registrar_name);
+        }
+        if !registrar_iana_id.is_empty() {
+            formatted_data += &format!("Registrar IANA ID: {}\n", registrar_iana_id);
+        }
+        if !registrar_adr.is_empty() {
+            formatted_data += &registrar_adr;
+        }
+        if !abuse_contact_email.is_empty() {
+            formatted_data += &format!("Registrar Abuse Contact Email: {}\n", abuse_contact_email);
+        }
+        if !abuse_contact_phone.is_empty() {
+            formatted_data += &format!("Registrar Abuse Contact Phone: {}\n", abuse_contact_phone);
+        }
 
         gtld.push_str(&formatted_data);
 
@@ -193,6 +245,7 @@ impl ToGtld for Domain {
         gtld.push_str(
             "URL of the ICANN Whois Inaccuracy Complaint Form: https://www.icann.org/wicf/\n",
         );
+      
         if let Some(events) = &self.object_common.events {
             for event in events {
                 if event.event_action == "last update of RDAP database" {
