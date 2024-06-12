@@ -346,7 +346,7 @@ fn do_final_output<W: std::io::Write>(
             // info!("Extra RDAP JSON in output");
             writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
         }
-        OutputType::Gtld => { }
+        OutputType::Gtld => {}
         _ => {
             info!("No output type specified");
             writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
