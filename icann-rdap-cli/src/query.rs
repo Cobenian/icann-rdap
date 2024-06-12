@@ -2,7 +2,7 @@ use icann_rdap_common::check::traverse_checks;
 use icann_rdap_common::check::CheckClass;
 use icann_rdap_common::check::CheckParams;
 use icann_rdap_common::check::GetChecks;
-// use serde_json::Value;
+use serde_json::Value;
 use tracing::error;
 use tracing::info;
 
@@ -289,8 +289,8 @@ fn do_output<'a, W: std::io::Write>(
                 response.rdap.to_gtld(GtldParams {
                     root: &response.rdap,
                     parent_type: response.rdap.get_type(),
-                    check_types: &processing_params.check_types,
-                    req_data,
+                    // check_types: &processing_params.check_types,
+                    // req_data,
                 })
             )?;
         }
@@ -351,6 +351,7 @@ fn do_final_output<W: std::io::Write>(
             // do nothing
             // info!("GTLD in the front spot");
             // for req_res in &transactions {
+            //     0;
             // let json_str = serde_json::to_string(&req_res.res_data.rdap).unwrap();
             // let v: Value = serde_json::from_str(&json_str).unwrap();
             // print_flattened_json(&v, String::new());
@@ -424,18 +425,18 @@ fn get_related_link(rdap_response: &RdapResponse) -> Vec<&str> {
     }
 }
 
-// fn print_flattened_json(value: &Value, prefix: String) {
-//     match value {
-//         Value::Object(map) => {
-//             for (key, value) in map {
-//                 print_flattened_json(value, format!("{}{}.", prefix, key));
-//             }
-//         }
-//         Value::Array(arr) => {
-//             for (index, value) in arr.iter().enumerate() {
-//                 print_flattened_json(value, format!("{}[{}].", prefix, index));
-//             }
-//         }
-//         _ => println!("{}: {}", prefix, value),
-//     }
-// }
+fn print_flattened_json(value: &Value, prefix: String) {
+    match value {
+        Value::Object(map) => {
+            for (key, value) in map {
+                print_flattened_json(value, format!("{}{}.", prefix, key));
+            }
+        }
+        Value::Array(arr) => {
+            for (index, value) in arr.iter().enumerate() {
+                print_flattened_json(value, format!("{}[{}].", prefix, index));
+            }
+        }
+        _ => println!("{}: {}", prefix, value),
+    }
+}
