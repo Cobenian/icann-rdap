@@ -182,7 +182,6 @@ fn format_last_update_info(events: &Option<Vec<Event>>, gtld: &mut String) {
 }
 
 // here there be Dragons
-// Step 1: Define the new function
 fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, String) {
     let mut registrar_name = String::new();
     let mut registrar_iana_id = String::new();
@@ -271,7 +270,7 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                                                     }
                                                 }
                                             }
-                                        } // end if abuse
+                                        }
                                     }
                                 }
                             }
@@ -381,7 +380,7 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
         }
     }
 
-    // Combine all pieces of information into the formatted_data string
+    // Combine all the pieces
     if !registrar_name.is_empty() {
         formatted_data += &format!("Registrar: {}\n", registrar_name);
     }
@@ -429,7 +428,7 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
     }
 
     // Return the formatted data
-    (formatted_data, String::new()) // Adjust according to actual needs
+    (formatted_data, String::new())
 }
 
 fn format_address_with_label(address_components: &Vec<serde_json::Value>, label: &str) -> String {
