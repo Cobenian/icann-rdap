@@ -1,76 +1,34 @@
 use super::{GtldParams, ToGtld};
-// use icann_rdap_common::check::{CheckParams, GetChecks, GetSubChecks};
 use icann_rdap_common::response::domain::Domain;
-use std::any::TypeId;
+use icann_rdap_common::response::domain::SecureDns;
+use icann_rdap_common::response::nameserver::Nameserver;
+use icann_rdap_common::response::network::Network;
+use icann_rdap_common::response::types::Event;
+use icann_rdap_common::response::types::StatusValue;
 
 impl ToGtld for Domain {
     fn to_gtld(&self, params: GtldParams) -> String {
-        let _typeid = TypeId::of::<Domain>();
         let mut gtld = String::new();
-        // gtld.push_str(&self.common.to_gtld(params.from_parent(typeid)));
-        gtld.push_str("\n\n");
 
-        // header
-        let domain_name = if let Some(unicode_name) = &self.unicode_name {
-            format!("Domain Name: {unicode_name}")
-        } else if let Some(ldh_name) = &self.ldh_name {
-            format!("Domain Name: {ldh_name}")
-        } else if let Some(handle) = &self.object_common.handle {
-            format!("Domain Name: {handle}")
-        } else {
-            "Domain Name: ".to_string()
-        };
+        gtld.push_str("\n\n");
+        // Domain Name
+        let domain_name = format_domain_name(self);
         gtld.push_str(&domain_name);
         gtld.push('\n');
 
         // Domain ID
-        let domain_id = if let Some(handle) = &self.object_common.handle {
-            format!("Registry Domain ID: {handle}")
-        } else {
-            "Registry Domain ID:".to_string()
-        };
+        let domain_id = format_domain_id(self.object_common.handle.as_ref());
         gtld.push_str(&domain_id);
         gtld.push('\n');
 
         // Date Time for Registry
-        if let Some(events) = &self.object_common.events {
-            for event in events {
-                //"last changed"
-                if event.event_action == "last changed" {
-                    if let Some(event_date) = &event.event_date {
-                        gtld.push_str(&format!("Updated Date: {}\n", event_date));
-                    }
-                }
-                //registration
-                if event.event_action == "registration" {
-                    if let Some(event_date) = &event.event_date {
-                        gtld.push_str(&format!("Creation Date: {}\n", event_date));
-                    }
-                }
-                //expiration
-                if event.event_action == "expiration" {
-                    if let Some(event_date) = &event.event_date {
-                        gtld.push_str(&format!("Registry Expiry Date: {}\n", event_date));
-                    }
-                }
-            }
-        }
+        let date_info = format_registry_dates(&self.object_common.events);
+        gtld.push_str(&date_info);
 
         // Common Object Stuff
-        // let mut table = MultiPartTable::new();
-        // table = self.object_common.add_to_gtldtable(table, params);
-        // gtld.push_str(&table.to_gtld(params));
-        // Common Object Stuff
-        if let Some(status) = &self.object_common.status {
-            for value in status {
-                gtld.push_str(&format!("Domain Status: {}\n", value.0));
-            }
-        }
-        if let Some(port_43) = &self.object_common.port_43 {
-            if !port_43.is_empty() {
-                gtld.push_str(&format!("Registrar Whois Server: {}\n", port_43));
-            }
-        }
+        let domain_info =
+            format_domain_info(&self.object_common.status, &self.object_common.port_43);
+        gtld.push_str(&domain_info);
 
         // dump out self.object_common.entities
         // dbg!(&self.object_common.entities);
@@ -235,57 +193,149 @@ impl ToGtld for Domain {
 
         gtld.push_str(&formatted_data);
 
-        // nameservers
-        if let Some(nameservers) = &self.nameservers {
-            nameservers
-                .iter()
-                .for_each(|ns| gtld.push_str(&ns.to_gtld(params.next_level())));
-        }
-
-        // // network
-        if let Some(network) = &self.network {
-            gtld.push_str(&network.to_gtld(params.next_level()));
-        }
+        // nameservers and network
+        let additional_info =
+            format_nameservers_and_network(&self.nameservers, &self.network, &params);
+        gtld.push_str(&additional_info);
 
         // secure dns
-        if let Some(secure_dns) = &self.secure_dns {
-            if secure_dns.delegation_signed.unwrap_or(false) {
-                gtld.push_str("DNSSEC: signedDelegation\n");
-                if let Some(ds_data) = &secure_dns.ds_data {
-                    for ds in ds_data {
-                        if let (Some(key_tag), Some(algorithm), Some(digest_type), Some(digest)) =
-                            (ds.key_tag, ds.algorithm, ds.digest_type, ds.digest.as_ref())
-                        {
-                            gtld.push_str(&format!(
-                                "DNSSEC DS Data: {} {} {} {}\n",
-                                key_tag, algorithm, digest_type, digest
-                            ));
-                        }
-                    }
-                }
-            }
-        }
+        let dnssec_info = format_dnssec_info(&self.secure_dns);
+        gtld.push_str(&dnssec_info);
 
         gtld.push_str(
             "URL of the ICANN Whois Inaccuracy Complaint Form: https://www.icann.org/wicf/\n",
         );
 
-        if let Some(events) = &self.object_common.events {
-            for event in events {
-                if event.event_action == "last update of RDAP database" {
-                    if let Some(event_date) = &event.event_date {
-                        gtld.push_str(&format!(
-                            ">>> Last update of RDAP database: {} <<<\n",
-                            event_date
-                        ));
-                    }
-                    break;
-                }
-            }
-        }
+        // last update info
+        format_last_update_info(&self.object_common.events, &mut gtld);
 
         // strip out any double newlines and keep just one new line
         gtld = gtld.replace("\n\n", "\n");
         gtld
+    }
+}
+
+fn format_domain_name(domain: &Domain) -> String {
+    if let Some(unicode_name) = &domain.unicode_name {
+        format!("Domain Name: {unicode_name}")
+    } else if let Some(ldh_name) = &domain.ldh_name {
+        format!("Domain Name: {ldh_name}")
+    } else if let Some(handle) = &domain.object_common.handle {
+        format!("Domain Name: {handle}")
+    } else {
+        "Domain Name: ".to_string()
+    }
+}
+
+fn format_domain_id(handle: Option<&String>) -> String {
+    if let Some(handle) = handle {
+        format!("Registry Domain ID: {handle}")
+    } else {
+        "Registry Domain ID:".to_string()
+    }
+}
+
+fn format_registry_dates(events: &Option<Vec<Event>>) -> String {
+    let mut formatted_dates = String::new();
+    if let Some(events) = events {
+        for event in events {
+            match event.event_action.as_str() {
+                "last changed" => {
+                    if let Some(event_date) = &event.event_date {
+                        formatted_dates.push_str(&format!("Updated Date: {}\n", event_date));
+                    }
+                }
+                "registration" => {
+                    if let Some(event_date) = &event.event_date {
+                        formatted_dates.push_str(&format!("Creation Date: {}\n", event_date));
+                    }
+                }
+                "expiration" => {
+                    if let Some(event_date) = &event.event_date {
+                        formatted_dates
+                            .push_str(&format!("Registry Expiry Date: {}\n", event_date));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    formatted_dates
+}
+
+fn format_domain_info(status: &Option<Vec<StatusValue>>, port_43: &Option<String>) -> String {
+    let mut info = String::new();
+    if let Some(status) = status {
+        for value in status {
+            // Assuming StatusValue has a field or method to get the status as a String
+            // You might need to adjust this part according to the actual structure of StatusValue
+            info.push_str(&format!("Domain Status: {}\n", value.to_string()));
+        }
+    }
+    if let Some(port_43) = port_43 {
+        if !port_43.is_empty() {
+            info.push_str(&format!("Registrar Whois Server: {}\n", port_43));
+        }
+    }
+    info
+}
+
+fn format_nameservers_and_network(
+    nameservers: &Option<Vec<Nameserver>>, // Adjust the type according to your actual Nameserver type
+    network: &Option<Network>,             // Adjust the type according to your actual Network type
+    params: &GtldParams, // Assuming Params is the type of `params` and it has a method `next_level`
+) -> String {
+    let mut gtld = String::new();
+
+    if let Some(nameservers) = nameservers {
+        nameservers
+            .iter()
+            .for_each(|ns| gtld.push_str(&ns.to_gtld(params.next_level())));
+    }
+
+    if let Some(network) = network {
+        gtld.push_str(&network.to_gtld(params.next_level()));
+    }
+
+    gtld
+}
+
+fn format_dnssec_info(secure_dns: &Option<SecureDns>) -> String {
+    let mut dnssec_info = String::new();
+
+    if let Some(secure_dns) = secure_dns {
+        if secure_dns.delegation_signed.unwrap_or(false) {
+            dnssec_info.push_str("DNSSEC: signedDelegation\n");
+            if let Some(ds_data) = &secure_dns.ds_data {
+                for ds in ds_data {
+                    if let (Some(key_tag), Some(algorithm), Some(digest_type), Some(digest)) =
+                        (ds.key_tag, ds.algorithm, ds.digest_type, ds.digest.as_ref())
+                    {
+                        dnssec_info.push_str(&format!(
+                            "DNSSEC DS Data: {} {} {} {}\n",
+                            key_tag, algorithm, digest_type, digest
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    dnssec_info
+}
+
+fn format_last_update_info(events: &Option<Vec<Event>>, gtld: &mut String) {
+    if let Some(events) = events {
+        for event in events {
+            if event.event_action == "last update of RDAP database" {
+                if let Some(event_date) = &event.event_date {
+                    gtld.push_str(&format!(
+                        ">>> Last update of RDAP database: {} <<<\n",
+                        event_date
+                    ));
+                }
+                break;
+            }
+        }
     }
 }
