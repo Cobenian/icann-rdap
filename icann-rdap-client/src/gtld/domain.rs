@@ -267,8 +267,6 @@ fn format_domain_info(status: &Option<Vec<StatusValue>>, port_43: &Option<String
     let mut info = String::new();
     if let Some(status) = status {
         for value in status {
-            // Assuming StatusValue has a field or method to get the status as a String
-            // You might need to adjust this part according to the actual structure of StatusValue
             info.push_str(&format!("Domain Status: {}\n", value.to_string()));
         }
     }
@@ -281,9 +279,9 @@ fn format_domain_info(status: &Option<Vec<StatusValue>>, port_43: &Option<String
 }
 
 fn format_nameservers_and_network(
-    nameservers: &Option<Vec<Nameserver>>, // Adjust the type according to your actual Nameserver type
-    network: &Option<Network>,             // Adjust the type according to your actual Network type
-    params: &GtldParams, // Assuming Params is the type of `params` and it has a method `next_level`
+    nameservers: &Option<Vec<Nameserver>>,
+    network: &Option<Network>,
+    params: &GtldParams,
 ) -> String {
     let mut gtld = String::new();
 
