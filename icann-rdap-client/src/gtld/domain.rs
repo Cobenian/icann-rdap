@@ -193,12 +193,15 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
 
     let mut tech_name = String::new();
     let mut tech_adr = String::new();
+    let mut tech_org = String::new();
 
     let mut admin_name = String::new();
     let mut admin_adr = String::new();
+    let mut admin_org = String::new();
 
     let mut registrant_name = String::new();
     let mut registrant_adr = String::new();
+    let mut registrant_org = String::new();
 
     if let Some(entities) = entities {
         for entity in entities {
@@ -275,8 +278,8 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                         }
                     } // if the role is registrar
                     if role.as_str() == "technical" {
-                        println!("Technical: FOUND!\n");
-                        dbg!(&entity.vcard_array);
+                        // println!("Technical: FOUND!\n");
+                        // dbg!(&entity.vcard_array);
                         if let Some(vcard_array) = &entity.vcard_array {
                             for vcard in vcard_array.iter() {
                                 if let Some(properties) = vcard.as_array() {
@@ -284,6 +287,12 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                                         if let Some(property) = property.as_array() {
                                             if property[0].as_str().unwrap_or("") == "fn" {
                                                 tech_name =
+                                                    property[3].as_str().unwrap_or("").to_string();
+                                            }
+                                        }
+                                        if let Some(property) = property.as_array() {
+                                            if property[0].as_str().unwrap_or("") == "org" {
+                                                tech_org =
                                                     property[3].as_str().unwrap_or("").to_string();
                                             }
                                         }
@@ -302,8 +311,8 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                         }
                     }
                     if role.as_str() == "administrative" {
-                        println!("Administrative: FOUND!\n");
-                        dbg!(&entity.vcard_array);
+                        // println!("Administrative: FOUND!\n");
+                        // dbg!(&entity.vcard_array);
                         if let Some(vcard_array) = &entity.vcard_array {
                             for vcard in vcard_array.iter() {
                                 if let Some(properties) = vcard.as_array() {
@@ -311,6 +320,12 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                                         if let Some(property) = property.as_array() {
                                             if property[0].as_str().unwrap_or("") == "fn" {
                                                 admin_name =
+                                                    property[3].as_str().unwrap_or("").to_string();
+                                            }
+                                        }
+                                        if let Some(property) = property.as_array() {
+                                            if property[0].as_str().unwrap_or("") == "org" {
+                                                admin_org =
                                                     property[3].as_str().unwrap_or("").to_string();
                                             }
                                         }
@@ -329,15 +344,21 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                         }
                     }
                     if role.as_str() == "registrant" {
-                        println!("Registrant: FOUND!\n");
-                        dbg!(&entity.vcard_array);
+                        // println!("Registrant: FOUND!\n");
+                        // dbg!(&entity.vcard_array);
                         if let Some(vcard_array) = &entity.vcard_array {
                             for vcard in vcard_array.iter() {
                                 if let Some(properties) = vcard.as_array() {
                                     for property in properties {
                                         if let Some(property) = property.as_array() {
-                                            if property[0].as_str().unwrap_or("") == "org" {
+                                            if property[0].as_str().unwrap_or("") == "fn" {
                                                 registrant_name =
+                                                    property[3].as_str().unwrap_or("").to_string();
+                                            }
+                                        }
+                                        if let Some(property) = property.as_array() {
+                                            if property[0].as_str().unwrap_or("") == "org" {
+                                                registrant_org =
                                                     property[3].as_str().unwrap_or("").to_string();
                                             }
                                         }
@@ -380,6 +401,9 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
     if !tech_name.is_empty() {
         formatted_data += &format!("Tech Name: {}\n", tech_name);
     }
+    if !tech_org.is_empty() {
+        formatted_data += &format!("Tech Organization: {}\n", tech_org);
+    }
     if !tech_adr.is_empty() {
         formatted_data += &tech_adr;
     }
@@ -387,12 +411,18 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
     if !admin_name.is_empty() {
         formatted_data += &format!("Admin Name: {}\n", admin_name);
     }
+    if !admin_org.is_empty() {
+        formatted_data += &format!("Admin Organization: {}\n", admin_org);
+    }
     if !admin_adr.is_empty() {
         formatted_data += &admin_adr;
     }
 
     if !registrant_name.is_empty() {
         formatted_data += &format!("Registrant Name: {}\n", registrant_name);
+    }
+    if !registrant_org.is_empty() {
+        formatted_data += &format!("Registrant Organization: {}\n", registrant_org);
     }
     if !registrant_adr.is_empty() {
         formatted_data += &registrant_adr;
