@@ -191,6 +191,15 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
     let mut registrar_adr = String::new();
     let mut formatted_data = String::new();
 
+    let mut tech_name = String::new();
+    let mut tech_adr = String::new();
+
+    let mut admin_name = String::new();
+    let mut admin_adr = String::new();
+
+    let mut registrant_name = String::new();
+    let mut registrant_adr = String::new();
+
     if let Some(entities) = entities {
         for entity in entities {
             if let Some(roles) = &entity.roles {
@@ -267,21 +276,84 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                     } // if the role is registrar
                     if role.as_str() == "technical" {
                         println!("Technical: FOUND!\n");
-                        // dbg!(&entity.vcard_array);
-
-                        //
+                        dbg!(&entity.vcard_array);
+                        if let Some(vcard_array) = &entity.vcard_array {
+                            for vcard in vcard_array.iter() {
+                                if let Some(properties) = vcard.as_array() {
+                                    for property in properties {
+                                        if let Some(property) = property.as_array() {
+                                            if property[0].as_str().unwrap_or("") == "fn" {
+                                                tech_name =
+                                                    property[3].as_str().unwrap_or("").to_string();
+                                            }
+                                        }
+                                        if property[0].as_str().unwrap_or("") == "adr" {
+                                            if let Some(address_components) = property[3].as_array()
+                                            {
+                                                tech_adr = format_address_with_label(
+                                                    address_components,
+                                                    "Technical",
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     if role.as_str() == "administrative" {
                         println!("Administrative: FOUND!\n");
-                        // dbg!(&entity.vcard_array);
-
-                        //
+                        dbg!(&entity.vcard_array);
+                        if let Some(vcard_array) = &entity.vcard_array {
+                            for vcard in vcard_array.iter() {
+                                if let Some(properties) = vcard.as_array() {
+                                    for property in properties {
+                                        if let Some(property) = property.as_array() {
+                                            if property[0].as_str().unwrap_or("") == "fn" {
+                                                admin_name =
+                                                    property[3].as_str().unwrap_or("").to_string();
+                                            }
+                                        }
+                                        if property[0].as_str().unwrap_or("") == "adr" {
+                                            if let Some(address_components) = property[3].as_array()
+                                            {
+                                                admin_adr = format_address_with_label(
+                                                    address_components,
+                                                    "Admin",
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     if role.as_str() == "registrant" {
                         println!("Registrant: FOUND!\n");
-                        // dbg!(&entity.vcard_array);
-
-                        //
+                        dbg!(&entity.vcard_array);
+                        if let Some(vcard_array) = &entity.vcard_array {
+                            for vcard in vcard_array.iter() {
+                                if let Some(properties) = vcard.as_array() {
+                                    for property in properties {
+                                        if let Some(property) = property.as_array() {
+                                            if property[0].as_str().unwrap_or("") == "org" {
+                                                registrant_name =
+                                                    property[3].as_str().unwrap_or("").to_string();
+                                            }
+                                        }
+                                        if property[0].as_str().unwrap_or("") == "adr" {
+                                            if let Some(address_components) = property[3].as_array()
+                                            {
+                                                registrant_adr = format_address_with_label(
+                                                    address_components,
+                                                    "Registrant",
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -303,6 +375,27 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
     }
     if !abuse_contact_phone.is_empty() {
         formatted_data += &format!("Registrar Abuse Contact Phone: {}\n", abuse_contact_phone);
+    }
+
+    if !tech_name.is_empty() {
+        formatted_data += &format!("Tech Name: {}\n", tech_name);
+    }
+    if !tech_adr.is_empty() {
+        formatted_data += &tech_adr;
+    }
+
+    if !admin_name.is_empty() {
+        formatted_data += &format!("Admin Name: {}\n", admin_name);
+    }
+    if !admin_adr.is_empty() {
+        formatted_data += &admin_adr;
+    }
+
+    if !registrant_name.is_empty() {
+        formatted_data += &format!("Registrant Name: {}\n", registrant_name);
+    }
+    if !registrant_adr.is_empty() {
+        formatted_data += &registrant_adr;
     }
 
     // Return the formatted data
