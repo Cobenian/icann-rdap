@@ -72,3 +72,52 @@ impl ToGtld for PostalAddress {
         )
     }
 }
+
+pub struct ContactInfo {
+    registrar_name: String,
+    registrar_url: String,
+    registrar_iana_id: String,
+    registrar_adr: String,
+    abuse_contact_email: String,
+    abuse_contact_phone: String,
+    tech_name: String,
+    tech_org: String,
+    tech_adr: String,
+    admin_name: String,
+    admin_org: String,
+    admin_adr: String,
+    registrant_name: String,
+    registrant_org: String,
+    registrant_adr: String,
+}
+
+impl ContactInfo {
+    fn format(&self) -> String {
+        let mut formatted_data = String::new();
+        let fields = [
+            ("Registrar", &self.registrar_name),
+            ("Registrar URL", &self.registrar_url),
+            ("Registrar IANA ID", &self.registrar_iana_id),
+            ("Registrar Address", &self.registrar_adr),
+            ("Registrar Abuse Contact Email", &self.abuse_contact_email),
+            ("Registrar Abuse Contact Phone", &self.abuse_contact_phone),
+            ("Tech Name", &self.tech_name),
+            ("Tech Organization", &self.tech_org),
+            ("Tech Address", &self.tech_adr),
+            ("Admin Name", &self.admin_name),
+            ("Admin Organization", &self.admin_org),
+            ("Admin Address", &self.admin_adr),
+            ("Registrant Name", &self.registrant_name),
+            ("Registrant Organization", &self.registrant_org),
+            ("Registrant Address", &self.registrant_adr),
+        ];
+
+        for (label, value) in &fields {
+            if !value.is_empty() {
+                formatted_data += &format!("{}: {}\n", label, value);
+            }
+        }
+
+        formatted_data
+    }
+}

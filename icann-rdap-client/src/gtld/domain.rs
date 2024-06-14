@@ -134,7 +134,6 @@ fn format_nameservers_and_network(
     if let Some(nameservers) = nameservers {
         nameservers
             .iter()
-            // .for_each(|ns| gtld.push_str(&ns.to_gtld(params.next_level())));
             .for_each(|ns| gtld.push_str(&ns.to_gtld(params)));
     }
 
@@ -185,295 +184,9 @@ fn format_last_update_info(events: &Option<Vec<Event>>, gtld: &mut String) {
     }
 }
 
-// here there be Dragons
-fn extract_registrar_and_abuse_info(
-    params: &mut GtldParams,
-    entities: &Option<Vec<Entity>>,
-) -> (String, String) {
-    let mut formatted_data = String::new();
-
-    let mut registrar_name = String::new();
-    let mut registrar_iana_id = String::new();
-    let mut registrar_adr = String::new();
-    let mut registrar_url = String::new();
-
-    let mut abuse_contact_email = String::new();
-    let mut abuse_contact_phone = String::new();
-
-    let mut tech_name = String::new();
-    let mut tech_adr = String::new();
-    let mut tech_org = String::new();
-
-    let mut admin_name = String::new();
-    let mut admin_adr = String::new();
-    let mut admin_org = String::new();
-
-    let mut registrant_name = String::new();
-    let mut registrant_adr = String::new();
-    let mut registrant_org = String::new();
-
-    if let Some(entities) = entities {
-        for entity in entities {
-            if let Some(roles) = &entity.roles {
-                for role in roles {
-                    if role.as_str() == "registrar" {
-                        // dbg!(&entity.vcard_array);
-                        // here make a contact from from_vcard.rs
-                        if let Some(vcard_array) = &entity.vcard_array {
-                            if let Some(contact) = Contact::from_vcard(vcard_array) {
-                                // dbg!(contact);
-                            }
-                            for vcard in vcard_array.iter() {
-                                if let Some(properties) = vcard.as_array() {
-                                    for property in properties {
-                                        if let Some(property) = property.as_array() {
-                                            if property[0].as_str().unwrap_or("") == "fn" {
-                                                registrar_name =
-                                                    property[3].as_str().unwrap_or("").to_string();
-                                            }
-                                            if property[0].as_str().unwrap_or("") == "url" {
-                                                registrar_url =
-                                                    property[3].as_str().unwrap_or("").to_string();
-                                            }
-                                        }
-                                        if property[0].as_str().unwrap_or("") == "adr" {
-                                            if let Some(address_components) = property[3].as_array()
-                                            {
-                                                // params.label = "Registrar".to_string();
-                                                params.label = "Registrar".to_string();
-                                                registrar_adr = format_address_with_label(
-                                                    params,
-                                                    address_components,
-                                                    "Registrar",
-                                                );
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        if let Some(public_ids) = &entity.public_ids {
-                            for public_id in public_ids {
-                                if public_id.id_type.as_str() == "IANA Registrar ID" {
-                                    registrar_iana_id = public_id.identifier.clone();
-                                }
-                            }
-                        }
-                        if let Some(entities) = &entity.object_common.entities {
-                            for entity in entities {
-                                if let Some(roles) = &entity.roles {
-                                    for role in roles {
-                                        if role.as_str() == "abuse" {
-                                            if let Some(vcard_array) = &entity.vcard_array {
-                                                if let Some(properties) = vcard_array[1].as_array()
-                                                {
-                                                    for property in properties {
-                                                        if let Some(property) = property.as_array()
-                                                        {
-                                                            if property[0].as_str().unwrap_or("")
-                                                                == "tel"
-                                                            {
-                                                                abuse_contact_phone = property[3]
-                                                                    .as_str()
-                                                                    .unwrap_or("")
-                                                                    .to_string();
-                                                            } else if property[0]
-                                                                .as_str()
-                                                                .unwrap_or("")
-                                                                == "email"
-                                                            {
-                                                                abuse_contact_email = property[3]
-                                                                    .as_str()
-                                                                    .unwrap_or("")
-                                                                    .to_string();
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } // if the role is registrar
-                    if role.as_str() == "technical" {
-                        // println!("Technical: FOUND!\n");
-                        // dbg!(&entity.vcard_array);
-                        if let Some(vcard_array) = &entity.vcard_array {
-                            if let Some(contact) = Contact::from_vcard(vcard_array) {
-                                // dbg!(contact);
-                            }
-                            for vcard in vcard_array.iter() {
-                                if let Some(properties) = vcard.as_array() {
-                                    for property in properties {
-                                        if let Some(property) = property.as_array() {
-                                            if property[0].as_str().unwrap_or("") == "fn" {
-                                                tech_name =
-                                                    property[3].as_str().unwrap_or("").to_string();
-                                            }
-                                        }
-                                        if let Some(property) = property.as_array() {
-                                            if property[0].as_str().unwrap_or("") == "org" {
-                                                tech_org =
-                                                    property[3].as_str().unwrap_or("").to_string();
-                                            }
-                                        }
-                                        if property[0].as_str().unwrap_or("") == "adr" {
-                                            if let Some(address_components) = property[3].as_array()
-                                            {
-                                                params.label = "Technical".to_string();
-                                                tech_adr = format_address_with_label(
-                                                    params,
-                                                    address_components,
-                                                    "Technical",
-                                                );
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if role.as_str() == "administrative" {
-                        // println!("Administrative: FOUND!\n");
-                        // dbg!(&entity.vcard_array);
-                        if let Some(vcard_array) = &entity.vcard_array {
-                            if let Some(contact) = Contact::from_vcard(vcard_array) {
-                                // dbg!(contact);
-                            }
-                            for vcard in vcard_array.iter() {
-                                if let Some(properties) = vcard.as_array() {
-                                    for property in properties {
-                                        if let Some(property) = property.as_array() {
-                                            if property[0].as_str().unwrap_or("") == "fn" {
-                                                admin_name =
-                                                    property[3].as_str().unwrap_or("").to_string();
-                                            }
-                                        }
-                                        if let Some(property) = property.as_array() {
-                                            if property[0].as_str().unwrap_or("") == "org" {
-                                                admin_org =
-                                                    property[3].as_str().unwrap_or("").to_string();
-                                            }
-                                        }
-                                        if property[0].as_str().unwrap_or("") == "adr" {
-                                            if let Some(address_components) = property[3].as_array()
-                                            {
-                                                params.label = "Admin".to_string();
-                                                admin_adr = format_address_with_label(
-                                                    params,
-                                                    address_components,
-                                                    "Admin",
-                                                );
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if role.as_str() == "registrant" {
-                        // println!("Registrant: FOUND!\n");
-                        // dbg!(&entity.vcard_array);
-                        if let Some(vcard_array) = &entity.vcard_array {
-                            if let Some(contact) = Contact::from_vcard(vcard_array) {
-                                // dbg!(contact);
-                            }
-                            for vcard in vcard_array.iter() {
-                                if let Some(properties) = vcard.as_array() {
-                                    for property in properties {
-                                        if let Some(property) = property.as_array() {
-                                            if property[0].as_str().unwrap_or("") == "fn" {
-                                                registrant_name =
-                                                    property[3].as_str().unwrap_or("").to_string();
-                                            }
-                                        }
-                                        if let Some(property) = property.as_array() {
-                                            if property[0].as_str().unwrap_or("") == "org" {
-                                                registrant_org =
-                                                    property[3].as_str().unwrap_or("").to_string();
-                                            }
-                                        }
-                                        if property[0].as_str().unwrap_or("") == "adr" {
-                                            if let Some(address_components) = property[3].as_array()
-                                            {
-                                                params.label = "Registrant".to_string();
-                                                registrant_adr = format_address_with_label(
-                                                    params,
-                                                    address_components,
-                                                    "Registrant",
-                                                );
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Combine all the pieces
-    if !registrar_name.is_empty() {
-        formatted_data += &format!("Registrar: {}\n", registrar_name);
-    }
-    if !registrar_url.is_empty() {
-        formatted_data += &format!("Registrar URL: {}\n", registrar_url);
-    }
-    if !registrar_iana_id.is_empty() {
-        formatted_data += &format!("Registrar IANA ID: {}\n", registrar_iana_id);
-    }
-    if !registrar_adr.is_empty() {
-        formatted_data += &registrar_adr;
-    }
-    if !abuse_contact_email.is_empty() {
-        formatted_data += &format!("Registrar Abuse Contact Email: {}\n", abuse_contact_email);
-    }
-    if !abuse_contact_phone.is_empty() {
-        formatted_data += &format!("Registrar Abuse Contact Phone: {}\n", abuse_contact_phone);
-    }
-
-    if !tech_name.is_empty() {
-        formatted_data += &format!("Tech Name: {}\n", tech_name);
-    }
-    if !tech_org.is_empty() {
-        formatted_data += &format!("Tech Organization: {}\n", tech_org);
-    }
-    if !tech_adr.is_empty() {
-        formatted_data += &tech_adr;
-    }
-
-    if !admin_name.is_empty() {
-        formatted_data += &format!("Admin Name: {}\n", admin_name);
-    }
-    if !admin_org.is_empty() {
-        formatted_data += &format!("Admin Organization: {}\n", admin_org);
-    }
-    if !admin_adr.is_empty() {
-        formatted_data += &admin_adr;
-    }
-
-    if !registrant_name.is_empty() {
-        formatted_data += &format!("Registrant Name: {}\n", registrant_name);
-    }
-    if !registrant_org.is_empty() {
-        formatted_data += &format!("Registrant Organization: {}\n", registrant_org);
-    }
-    if !registrant_adr.is_empty() {
-        formatted_data += &registrant_adr;
-    }
-
-    // Return the formatted data
-    (formatted_data, String::new())
-}
-
 fn format_address_with_label(
     params: &mut GtldParams,
     address_components: &Vec<serde_json::Value>,
-    label: &str,
 ) -> String {
     let postal_address = PostalAddress::builder()
         .street_parts(
@@ -494,7 +207,6 @@ fn format_address_with_label(
                 .and_then(|v| v.as_str())
                 .map_or_else(|| String::new(), String::from),
         )
-        // Assuming region_code is not available in address_components
         .country_name(
             address_components
                 .get(6)
@@ -518,59 +230,181 @@ fn format_address_with_label(
     postal_address.to_gtld(params).to_string()
 }
 
-// fn format_address_with_label(address_components: &Vec<serde_json::Value>, label: &str) -> String {
-//     if address_components.len() < 7 {
-//         return String::new();
-//     }
+struct RoleInfo {
+    name: String,
+    org: String,
+    adr: String,
+}
 
-//     let street_end_index = address_components.len() - 4;
-//     let street = address_components[0..street_end_index]
-//         .iter()
-//         .filter_map(|s| s.as_str())
-//         .collect::<Vec<&str>>()
-//         .join(" ");
-//     let city = address_components
-//         .get(street_end_index)
-//         .and_then(|s| s.as_str())
-//         .unwrap_or("");
-//     let state = address_components
-//         .get(street_end_index + 1)
-//         .and_then(|s| s.as_str())
-//         .unwrap_or("");
-//     let postal_code = address_components
-//         .get(street_end_index + 2)
-//         .and_then(|s| s.as_str())
-//         .unwrap_or("");
-//     let country = address_components
-//         .get(street_end_index + 3)
-//         .and_then(|s| s.as_str())
-//         .unwrap_or("");
+fn extract_registrar_and_abuse_info(
+    params: &mut GtldParams,
+    entities: &Option<Vec<Entity>>,
+) -> (String, String) {
+    let mut front_formatted_data = String::new();
+    let mut formatted_data = String::new();
+    let mut abuse_contact_phone = String::new();
+    let mut abuse_contact_email = String::new();
 
-//     format!(
-//         "{} Street: {}\n{} City: {}\n{} State/Province: {}\n{} Postal Code: {}\n{} Country: {}\n",
-//         label, street, label, city, label, state, label, postal_code, label, country
-//     )
-// }
+    if let Some(entities) = entities {
+        for entity in entities {
+            if let Some(roles) = &entity.roles {
+                for role in roles {
+                    match role.as_str() {
+                        "registrar" => {
+                            if let Some(vcard_array) = &entity.vcard_array {
+                                let role_info = extract_role_info(role, vcard_array, params);
+                                // Now use role_info to append to formatted_data
+                                if !role_info.name.is_empty() {
+                                    front_formatted_data +=
+                                        &format!("{}: {}\n", cfl(role), role_info.name);
+                                }
+                                if !role_info.org.is_empty() {
+                                    front_formatted_data +=
+                                        &format!("{} Organization: {}\n", cfl(role), role_info.org);
+                                }
+                                if !role_info.adr.is_empty() {
+                                    front_formatted_data += &role_info.adr;
+                                }
+                            }
+                            // Special Sauce for Registrar IANA ID and Abuse Contact
+                            if let Some(public_ids) = &entity.public_ids {
+                                for public_id in public_ids {
+                                    if public_id.id_type.as_str() == "IANA Registrar ID" {
+                                        if !public_id.identifier.is_empty() {
+                                            front_formatted_data += &format!(
+                                                "Registrar IANA ID: {}\n",
+                                                public_id.identifier.clone()
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            if let Some(entities) = &entity.object_common.entities {
+                                for entity in entities {
+                                    if let Some(roles) = &entity.roles {
+                                        for role in roles {
+                                            if role.as_str() == "abuse" {
+                                                if let Some(vcard_array) = &entity.vcard_array {
+                                                    if let Some(properties) =
+                                                        vcard_array[1].as_array()
+                                                    {
+                                                        for property in properties {
+                                                            if let Some(property) =
+                                                                property.as_array()
+                                                            {
+                                                                if property[0]
+                                                                    .as_str()
+                                                                    .unwrap_or("")
+                                                                    == "tel"
+                                                                {
+                                                                    abuse_contact_phone = property
+                                                                        [3]
+                                                                    .as_str()
+                                                                    .unwrap_or("")
+                                                                    .to_string();
+                                                                    if !abuse_contact_phone
+                                                                        .is_empty()
+                                                                    {
+                                                                        front_formatted_data += &format!("Registrar Abuse Contact Phone: {}\n", abuse_contact_phone);
+                                                                    }
+                                                                } else if property[0]
+                                                                    .as_str()
+                                                                    .unwrap_or("")
+                                                                    == "email"
+                                                                {
+                                                                    abuse_contact_email = property
+                                                                        [3]
+                                                                    .as_str()
+                                                                    .unwrap_or("")
+                                                                    .to_string();
+                                                                    if !abuse_contact_email
+                                                                        .is_empty()
+                                                                    {
+                                                                        front_formatted_data += &format!("Registrar Abuse Contact Email: {}\n", abuse_contact_email);
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        "technical" | "administrative" | "registrant" => {
+                            if let Some(vcard_array) = &entity.vcard_array {
+                                let role_info = extract_role_info(role, vcard_array, params);
+                                // Now use role_info to append to formatted_data
+                                if !role_info.name.is_empty() {
+                                    formatted_data +=
+                                        &format!("{} Name: {}\n", cfl(role), role_info.name);
+                                }
+                                if !role_info.org.is_empty() {
+                                    formatted_data +=
+                                        &format!("{} Organization: {}\n", cfl(role), role_info.org);
+                                }
+                                if !role_info.adr.is_empty() {
+                                    formatted_data += &role_info.adr;
+                                }
+                            }
+                        }
+                        _ => {} // Are there any roles we are missing?
+                    }
+                }
+            }
+        }
+    }
 
-// if property[0].as_str().unwrap_or("") == "adr" {
-//     if let Some(address_components) = property[3].as_array() {
-//         // Assuming address_components is a Vec<Value> and has a specific order.
-//         // Create a PostalAddress instance from the address_components.
-//         let postal = PostalAddress {
-//             preference: None, // Assuming preference is not set here.
-//             contexts: None, // Assuming contexts is not set here.
-//             full_address: None, // Assuming full_address is not set here.
-//             street_parts: address_components.get(2).and_then(|v| v.as_str()).map(|s| vec![s.to_string()]),
-//             locality: address_components.get(3).and_then(|v| v.as_str()).map(String::from),
-//             region_name: address_components.get(4).and_then(|v| v.as_str()).map(String::from),
-//             region_code: None, // Assuming region_code is not set here.
-//             country_name: address_components.get(6).and_then(|v| v.as_str()).map(String::from),
-//             country_code: address_components.get(6).and_then(|v| v.as_str()).map(String::from),
-//             postal_code: address_components.get(5).and_then(|v| v.as_str()).map(String::from),
-//         };
+    front_formatted_data += &formatted_data;
+    (front_formatted_data, String::new())
+}
 
-//         // Call to_gtld on the PostalAddress instance.
-//         let gtld_params = GtldParams { label: "Registrar".to_string() };
-//         registrar_adr = postal.to_gtld(gtld_params);
-//     }
-// }
+fn extract_role_info(
+    role: &str,
+    vcard_array: &Vec<serde_json::Value>,
+    params: &mut GtldParams,
+) -> RoleInfo {
+    let mut name = String::new();
+    let mut org = String::new();
+    let mut adr = String::new();
+    let label = match role {
+        "registrar" => "Registrar",
+        "technical" => "Technical",
+        "administrative" => "Admin",
+        "registrant" => "Registrant",
+        _ => "",
+    };
+    params.label = label.to_string();
+
+    for vcard in vcard_array.iter() {
+        if let Some(properties) = vcard.as_array() {
+            for property in properties {
+                if let Some(property) = property.as_array() {
+                    match property[0].as_str().unwrap_or("") {
+                        "fn" => name = property[3].as_str().unwrap_or("").to_string(),
+                        "url" => name = property[3].as_str().unwrap_or("").to_string(),
+                        "org" => org = property[3].as_str().unwrap_or("").to_string(),
+                        "adr" => {
+                            if let Some(address_components) = property[3].as_array() {
+                                adr = format_address_with_label(params, address_components);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    RoleInfo { name, org, adr }
+}
+
+// capitalize first letter
+fn cfl(s: &str) -> String {
+    s.char_indices()
+        .next()
+        .map(|(i, c)| c.to_uppercase().collect::<String>() + &s[i + 1..])
+        .unwrap_or_else(|| String::new())
+}
