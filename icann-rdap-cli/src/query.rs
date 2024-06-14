@@ -125,11 +125,7 @@ async fn do_domain_query<'a, W: std::io::Write>(
                             transactions,
                         )?;
                     }
-                    Err(_error) => {
-                        info!("Error querying registrar data");
-                        // dbg!(&error);
-                        // return Err(error)
-                    }
+                    Err(error) => return Err(error),
                 }
             }
             do_final_output(processing_params, write, transactions)?;
