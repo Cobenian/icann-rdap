@@ -1,13 +1,11 @@
 use super::{GtldParams, ToGtld};
-use icann_rdap_common::contact::Contact;
 use icann_rdap_common::contact::PostalAddress;
 use icann_rdap_common::response::domain::Domain;
 use icann_rdap_common::response::domain::SecureDns;
 use icann_rdap_common::response::entity::Entity;
 use icann_rdap_common::response::nameserver::Nameserver;
 use icann_rdap_common::response::network::Network;
-use icann_rdap_common::response::types::Event;
-use icann_rdap_common::response::types::StatusValue;
+use icann_rdap_common::response::types::{Event, StatusValue};
 
 impl ToGtld for Domain {
     fn to_gtld(&self, params: &mut GtldParams) -> String {
@@ -33,8 +31,7 @@ impl ToGtld for Domain {
             format_domain_info(&self.object_common.status, &self.object_common.port_43);
         gtld.push_str(&domain_info);
 
-        // dump out self.object_common.entities
-        // dbg!(&self.object_common.entities);
+        // registrar and abuse/tech/admin/registrant info
         let (formatted_data, _) =
             extract_registrar_and_abuse_info(params, &self.object_common.entities);
         gtld.push_str(&formatted_data);
@@ -106,6 +103,7 @@ fn format_registry_dates(events: &Option<Vec<Event>>) -> String {
             }
         }
     }
+
     formatted_dates
 }
 
@@ -121,6 +119,7 @@ fn format_domain_info(status: &Option<Vec<StatusValue>>, port_43: &Option<String
             info.push_str(&format!("Registrar Whois Server: {}\n", port_43));
         }
     }
+
     info
 }
 
@@ -233,6 +232,7 @@ fn format_address_with_label(
 struct RoleInfo {
     name: String,
     org: String,
+    url: String,
     adr: String,
 }
 
@@ -242,8 +242,6 @@ fn extract_registrar_and_abuse_info(
 ) -> (String, String) {
     let mut front_formatted_data = String::new();
     let mut formatted_data = String::new();
-    let mut abuse_contact_phone = String::new();
-    let mut abuse_contact_email = String::new();
 
     if let Some(entities) = entities {
         for entity in entities {
@@ -262,6 +260,10 @@ fn extract_registrar_and_abuse_info(
                                     front_formatted_data +=
                                         &format!("{} Organization: {}\n", cfl(role), role_info.org);
                                 }
+                                if !role_info.url.is_empty() {
+                                    front_formatted_data +=
+                                        &format!("{} URL: {}\n", cfl(role), role_info.url);
+                                }
                                 if !role_info.adr.is_empty() {
                                     front_formatted_data += &role_info.adr;
                                 }
@@ -279,59 +281,7 @@ fn extract_registrar_and_abuse_info(
                                     }
                                 }
                             }
-                            if let Some(entities) = &entity.object_common.entities {
-                                for entity in entities {
-                                    if let Some(roles) = &entity.roles {
-                                        for role in roles {
-                                            if role.as_str() == "abuse" {
-                                                if let Some(vcard_array) = &entity.vcard_array {
-                                                    if let Some(properties) =
-                                                        vcard_array[1].as_array()
-                                                    {
-                                                        for property in properties {
-                                                            if let Some(property) =
-                                                                property.as_array()
-                                                            {
-                                                                if property[0]
-                                                                    .as_str()
-                                                                    .unwrap_or("")
-                                                                    == "tel"
-                                                                {
-                                                                    abuse_contact_phone = property
-                                                                        [3]
-                                                                    .as_str()
-                                                                    .unwrap_or("")
-                                                                    .to_string();
-                                                                    if !abuse_contact_phone
-                                                                        .is_empty()
-                                                                    {
-                                                                        front_formatted_data += &format!("Registrar Abuse Contact Phone: {}\n", abuse_contact_phone);
-                                                                    }
-                                                                } else if property[0]
-                                                                    .as_str()
-                                                                    .unwrap_or("")
-                                                                    == "email"
-                                                                {
-                                                                    abuse_contact_email = property
-                                                                        [3]
-                                                                    .as_str()
-                                                                    .unwrap_or("")
-                                                                    .to_string();
-                                                                    if !abuse_contact_email
-                                                                        .is_empty()
-                                                                    {
-                                                                        front_formatted_data += &format!("Registrar Abuse Contact Email: {}\n", abuse_contact_email);
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            append_abuse_contact_info(entity, &mut front_formatted_data);
                         }
                         "technical" | "administrative" | "registrant" => {
                             if let Some(vcard_array) = &entity.vcard_array {
@@ -368,7 +318,9 @@ fn extract_role_info(
 ) -> RoleInfo {
     let mut name = String::new();
     let mut org = String::new();
+    let mut url = String::new();
     let mut adr = String::new();
+
     let label = match role {
         "registrar" => "Registrar",
         "technical" => "Technical",
@@ -384,7 +336,7 @@ fn extract_role_info(
                 if let Some(property) = property.as_array() {
                     match property[0].as_str().unwrap_or("") {
                         "fn" => name = property[3].as_str().unwrap_or("").to_string(),
-                        "url" => name = property[3].as_str().unwrap_or("").to_string(),
+                        "url" => url = property[3].as_str().unwrap_or("").to_string(),
                         "org" => org = property[3].as_str().unwrap_or("").to_string(),
                         "adr" => {
                             if let Some(address_components) = property[3].as_array() {
@@ -398,7 +350,52 @@ fn extract_role_info(
         }
     }
 
-    RoleInfo { name, org, adr }
+    RoleInfo {
+        name,
+        org,
+        url,
+        adr,
+    }
+}
+
+fn append_abuse_contact_info(entity: &Entity, front_formatted_data: &mut String) {
+    if let Some(entities) = &entity.object_common.entities {
+        for entity in entities {
+            if let Some(roles) = &entity.roles {
+                for role in roles {
+                    if role.as_str() == "abuse" {
+                        if let Some(vcard_array) = &entity.vcard_array {
+                            if let Some(properties) = vcard_array[1].as_array() {
+                                for property in properties {
+                                    if let Some(property) = property.as_array() {
+                                        if property[0].as_str().unwrap_or("") == "tel" {
+                                            let abuse_contact_phone =
+                                                property[3].as_str().unwrap_or("").to_string();
+                                            if !abuse_contact_phone.is_empty() {
+                                                front_formatted_data.push_str(&format!(
+                                                    "Registrar Abuse Contact Phone: {}\n",
+                                                    abuse_contact_phone
+                                                ));
+                                            }
+                                        } else if property[0].as_str().unwrap_or("") == "email" {
+                                            let abuse_contact_email =
+                                                property[3].as_str().unwrap_or("").to_string();
+                                            if !abuse_contact_email.is_empty() {
+                                                front_formatted_data.push_str(&format!(
+                                                    "Registrar Abuse Contact Email: {}\n",
+                                                    abuse_contact_email
+                                                ));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // capitalize first letter
