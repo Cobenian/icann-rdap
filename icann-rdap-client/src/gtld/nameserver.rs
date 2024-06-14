@@ -3,12 +3,12 @@ use icann_rdap_common::response::nameserver::Nameserver;
 use std::any::TypeId;
 
 impl ToGtld for Nameserver {
-    fn to_gtld(&self, params: GtldParams) -> String {
+    fn to_gtld(&self, params: &mut GtldParams) -> String {
         let typeid = TypeId::of::<Nameserver>();
         let mut gtld = String::new();
 
         // other common stuff
-        gtld.push_str(&self.common.to_gtld(params.from_parent(typeid)));
+        // gtld.push_str(&self.common.to_gtld(params.from_parent(typeid)));
 
         // header
         let header_text = if let Some(unicode_name) = &self.unicode_name {

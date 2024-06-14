@@ -1,4 +1,6 @@
 use super::{GtldParams, ToGtld};
+use icann_rdap_common::contact::Contact;
+use icann_rdap_common::contact::PostalAddress;
 use icann_rdap_common::response::domain::Domain;
 use icann_rdap_common::response::domain::SecureDns;
 use icann_rdap_common::response::entity::Entity;
@@ -8,7 +10,7 @@ use icann_rdap_common::response::types::Event;
 use icann_rdap_common::response::types::StatusValue;
 
 impl ToGtld for Domain {
-    fn to_gtld(&self, params: GtldParams) -> String {
+    fn to_gtld(&self, params: &mut GtldParams) -> String {
         let mut gtld = String::new();
 
         gtld.push_str("\n\n");
@@ -33,12 +35,13 @@ impl ToGtld for Domain {
 
         // dump out self.object_common.entities
         // dbg!(&self.object_common.entities);
-        let (formatted_data, _) = extract_registrar_and_abuse_info(&self.object_common.entities);
+        let (formatted_data, _) =
+            extract_registrar_and_abuse_info(params, &self.object_common.entities);
         gtld.push_str(&formatted_data);
 
         // nameservers and network
         let additional_info =
-            format_nameservers_and_network(&self.nameservers, &self.network, &params);
+            format_nameservers_and_network(&self.nameservers, &self.network, params);
         gtld.push_str(&additional_info);
 
         // secure dns
@@ -124,18 +127,19 @@ fn format_domain_info(status: &Option<Vec<StatusValue>>, port_43: &Option<String
 fn format_nameservers_and_network(
     nameservers: &Option<Vec<Nameserver>>,
     network: &Option<Network>,
-    params: &GtldParams,
+    params: &mut GtldParams,
 ) -> String {
     let mut gtld = String::new();
 
     if let Some(nameservers) = nameservers {
         nameservers
             .iter()
-            .for_each(|ns| gtld.push_str(&ns.to_gtld(params.next_level())));
+            // .for_each(|ns| gtld.push_str(&ns.to_gtld(params.next_level())));
+            .for_each(|ns| gtld.push_str(&ns.to_gtld(params)));
     }
 
     if let Some(network) = network {
-        gtld.push_str(&network.to_gtld(params.next_level()));
+        gtld.push_str(&network.to_gtld(params));
     }
 
     gtld
@@ -182,13 +186,19 @@ fn format_last_update_info(events: &Option<Vec<Event>>, gtld: &mut String) {
 }
 
 // here there be Dragons
-fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, String) {
+fn extract_registrar_and_abuse_info(
+    params: &mut GtldParams,
+    entities: &Option<Vec<Entity>>,
+) -> (String, String) {
+    let mut formatted_data = String::new();
+
     let mut registrar_name = String::new();
     let mut registrar_iana_id = String::new();
+    let mut registrar_adr = String::new();
+    let mut registrar_url = String::new();
+
     let mut abuse_contact_email = String::new();
     let mut abuse_contact_phone = String::new();
-    let mut registrar_adr = String::new();
-    let mut formatted_data = String::new();
 
     let mut tech_name = String::new();
     let mut tech_adr = String::new();
@@ -208,7 +218,11 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                 for role in roles {
                     if role.as_str() == "registrar" {
                         // dbg!(&entity.vcard_array);
+                        // here make a contact from from_vcard.rs
                         if let Some(vcard_array) = &entity.vcard_array {
+                            if let Some(contact) = Contact::from_vcard(vcard_array) {
+                                // dbg!(contact);
+                            }
                             for vcard in vcard_array.iter() {
                                 if let Some(properties) = vcard.as_array() {
                                     for property in properties {
@@ -217,11 +231,18 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                                                 registrar_name =
                                                     property[3].as_str().unwrap_or("").to_string();
                                             }
+                                            if property[0].as_str().unwrap_or("") == "url" {
+                                                registrar_url =
+                                                    property[3].as_str().unwrap_or("").to_string();
+                                            }
                                         }
                                         if property[0].as_str().unwrap_or("") == "adr" {
                                             if let Some(address_components) = property[3].as_array()
                                             {
+                                                // params.label = "Registrar".to_string();
+                                                params.label = "Registrar".to_string();
                                                 registrar_adr = format_address_with_label(
+                                                    params,
                                                     address_components,
                                                     "Registrar",
                                                 );
@@ -280,6 +301,9 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                         // println!("Technical: FOUND!\n");
                         // dbg!(&entity.vcard_array);
                         if let Some(vcard_array) = &entity.vcard_array {
+                            if let Some(contact) = Contact::from_vcard(vcard_array) {
+                                // dbg!(contact);
+                            }
                             for vcard in vcard_array.iter() {
                                 if let Some(properties) = vcard.as_array() {
                                     for property in properties {
@@ -298,7 +322,9 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                                         if property[0].as_str().unwrap_or("") == "adr" {
                                             if let Some(address_components) = property[3].as_array()
                                             {
+                                                params.label = "Technical".to_string();
                                                 tech_adr = format_address_with_label(
+                                                    params,
                                                     address_components,
                                                     "Technical",
                                                 );
@@ -313,6 +339,9 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                         // println!("Administrative: FOUND!\n");
                         // dbg!(&entity.vcard_array);
                         if let Some(vcard_array) = &entity.vcard_array {
+                            if let Some(contact) = Contact::from_vcard(vcard_array) {
+                                // dbg!(contact);
+                            }
                             for vcard in vcard_array.iter() {
                                 if let Some(properties) = vcard.as_array() {
                                     for property in properties {
@@ -331,7 +360,9 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                                         if property[0].as_str().unwrap_or("") == "adr" {
                                             if let Some(address_components) = property[3].as_array()
                                             {
+                                                params.label = "Admin".to_string();
                                                 admin_adr = format_address_with_label(
+                                                    params,
                                                     address_components,
                                                     "Admin",
                                                 );
@@ -346,6 +377,9 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                         // println!("Registrant: FOUND!\n");
                         // dbg!(&entity.vcard_array);
                         if let Some(vcard_array) = &entity.vcard_array {
+                            if let Some(contact) = Contact::from_vcard(vcard_array) {
+                                // dbg!(contact);
+                            }
                             for vcard in vcard_array.iter() {
                                 if let Some(properties) = vcard.as_array() {
                                     for property in properties {
@@ -364,7 +398,9 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
                                         if property[0].as_str().unwrap_or("") == "adr" {
                                             if let Some(address_components) = property[3].as_array()
                                             {
+                                                params.label = "Registrant".to_string();
                                                 registrant_adr = format_address_with_label(
+                                                    params,
                                                     address_components,
                                                     "Registrant",
                                                 );
@@ -383,6 +419,9 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
     // Combine all the pieces
     if !registrar_name.is_empty() {
         formatted_data += &format!("Registrar: {}\n", registrar_name);
+    }
+    if !registrar_url.is_empty() {
+        formatted_data += &format!("Registrar URL: {}\n", registrar_url);
     }
     if !registrar_iana_id.is_empty() {
         formatted_data += &format!("Registrar IANA ID: {}\n", registrar_iana_id);
@@ -431,36 +470,107 @@ fn extract_registrar_and_abuse_info(entities: &Option<Vec<Entity>>) -> (String, 
     (formatted_data, String::new())
 }
 
-fn format_address_with_label(address_components: &Vec<serde_json::Value>, label: &str) -> String {
-    if address_components.len() < 7 {
-        return String::new();
-    }
+fn format_address_with_label(
+    params: &mut GtldParams,
+    address_components: &Vec<serde_json::Value>,
+    label: &str,
+) -> String {
+    let postal_address = PostalAddress::builder()
+        .street_parts(
+            address_components
+                .get(2)
+                .and_then(|v| v.as_str())
+                .map_or_else(|| Vec::new(), |s| vec![s.to_string()]),
+        )
+        .locality(
+            address_components
+                .get(3)
+                .and_then(|v| v.as_str())
+                .map_or_else(|| String::new(), String::from),
+        )
+        .region_name(
+            address_components
+                .get(4)
+                .and_then(|v| v.as_str())
+                .map_or_else(|| String::new(), String::from),
+        )
+        // Assuming region_code is not available in address_components
+        .country_name(
+            address_components
+                .get(6)
+                .and_then(|v| v.as_str())
+                .map_or_else(|| String::new(), String::from),
+        )
+        .country_code(
+            address_components
+                .get(6)
+                .and_then(|v| v.as_str())
+                .map_or_else(|| String::new(), String::from),
+        )
+        .postal_code(
+            address_components
+                .get(5)
+                .and_then(|v| v.as_str())
+                .map_or_else(|| String::new(), String::from),
+        )
+        .build();
 
-    let street_end_index = address_components.len() - 4;
-    let street = address_components[0..street_end_index]
-        .iter()
-        .filter_map(|s| s.as_str())
-        .collect::<Vec<&str>>()
-        .join(" ");
-    let city = address_components
-        .get(street_end_index)
-        .and_then(|s| s.as_str())
-        .unwrap_or("");
-    let state = address_components
-        .get(street_end_index + 1)
-        .and_then(|s| s.as_str())
-        .unwrap_or("");
-    let postal_code = address_components
-        .get(street_end_index + 2)
-        .and_then(|s| s.as_str())
-        .unwrap_or("");
-    let country = address_components
-        .get(street_end_index + 3)
-        .and_then(|s| s.as_str())
-        .unwrap_or("");
-
-    format!(
-        "{} Street: {}\n{} City: {}\n{} State/Province: {}\n{} Postal Code: {}\n{} Country: {}\n",
-        label, street, label, city, label, state, label, postal_code, label, country
-    )
+    postal_address.to_gtld(params).to_string()
 }
+
+// fn format_address_with_label(address_components: &Vec<serde_json::Value>, label: &str) -> String {
+//     if address_components.len() < 7 {
+//         return String::new();
+//     }
+
+//     let street_end_index = address_components.len() - 4;
+//     let street = address_components[0..street_end_index]
+//         .iter()
+//         .filter_map(|s| s.as_str())
+//         .collect::<Vec<&str>>()
+//         .join(" ");
+//     let city = address_components
+//         .get(street_end_index)
+//         .and_then(|s| s.as_str())
+//         .unwrap_or("");
+//     let state = address_components
+//         .get(street_end_index + 1)
+//         .and_then(|s| s.as_str())
+//         .unwrap_or("");
+//     let postal_code = address_components
+//         .get(street_end_index + 2)
+//         .and_then(|s| s.as_str())
+//         .unwrap_or("");
+//     let country = address_components
+//         .get(street_end_index + 3)
+//         .and_then(|s| s.as_str())
+//         .unwrap_or("");
+
+//     format!(
+//         "{} Street: {}\n{} City: {}\n{} State/Province: {}\n{} Postal Code: {}\n{} Country: {}\n",
+//         label, street, label, city, label, state, label, postal_code, label, country
+//     )
+// }
+
+// if property[0].as_str().unwrap_or("") == "adr" {
+//     if let Some(address_components) = property[3].as_array() {
+//         // Assuming address_components is a Vec<Value> and has a specific order.
+//         // Create a PostalAddress instance from the address_components.
+//         let postal = PostalAddress {
+//             preference: None, // Assuming preference is not set here.
+//             contexts: None, // Assuming contexts is not set here.
+//             full_address: None, // Assuming full_address is not set here.
+//             street_parts: address_components.get(2).and_then(|v| v.as_str()).map(|s| vec![s.to_string()]),
+//             locality: address_components.get(3).and_then(|v| v.as_str()).map(String::from),
+//             region_name: address_components.get(4).and_then(|v| v.as_str()).map(String::from),
+//             region_code: None, // Assuming region_code is not set here.
+//             country_name: address_components.get(6).and_then(|v| v.as_str()).map(String::from),
+//             country_code: address_components.get(6).and_then(|v| v.as_str()).map(String::from),
+//             postal_code: address_components.get(5).and_then(|v| v.as_str()).map(String::from),
+//         };
+
+//         // Call to_gtld on the PostalAddress instance.
+//         let gtld_params = GtldParams { label: "Registrar".to_string() };
+//         registrar_adr = postal.to_gtld(gtld_params);
+//     }
+// }

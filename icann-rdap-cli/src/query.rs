@@ -282,16 +282,12 @@ fn do_output<'a, W: std::io::Write>(
         }
         OutputType::Gtld => {
             // info!("GTLD in output");
-            writeln!(
-                write,
-                "{}",
-                response.rdap.to_gtld(GtldParams {
-                    root: &response.rdap,
-                    parent_type: response.rdap.get_type(),
-                    // check_types: &processing_params.check_types,
-                    // req_data,
-                })
-            )?;
+            let mut params = GtldParams {
+                root: &response.rdap,
+                parent_type: response.rdap.get_type(),
+                label: "".to_string(),
+            };
+            writeln!(write, "{}", response.rdap.to_gtld(&mut params))?;
         }
         _ => {
             info!("this here is no output type specified");
