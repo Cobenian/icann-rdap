@@ -117,7 +117,6 @@ async fn do_domain_query<'a, W: std::io::Write>(
                             source_host: &regr_source_host,
                             source_type: SourceType::DomainRegistrar,
                         };
-                        info!("Outputting registrar data");
                         transactions = do_output(
                             processing_params,
                             &regr_req_data,
@@ -133,7 +132,6 @@ async fn do_domain_query<'a, W: std::io::Write>(
                     }
                 }
             }
-            info!("Final output");
             do_final_output(processing_params, write, transactions)?;
         }
         Err(error) => return Err(error),
@@ -262,7 +260,6 @@ fn do_output<'a, W: std::io::Write>(
             )?;
         }
         OutputType::Markdown => {
-            info!("Markdown in output");
             writeln!(
                 write,
                 "{}",
@@ -281,7 +278,6 @@ fn do_output<'a, W: std::io::Write>(
             )?;
         }
         OutputType::Gtld => {
-            // info!("GTLD in output");
             let mut params = GtldParams {
                 root: &response.rdap,
                 parent_type: response.rdap.get_type(),
@@ -290,7 +286,7 @@ fn do_output<'a, W: std::io::Write>(
             writeln!(write, "{}", response.rdap.to_gtld(&mut params))?;
         }
         _ => {
-            info!("this here is no output type specified");
+            // What? Why?
             // writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
             // dbg!(response);
         } // do nothing
@@ -319,8 +315,6 @@ fn do_final_output<W: std::io::Write>(
     match processing_params.output_type {
         OutputType::Json => {
             for req_res in &transactions {
-                // info!("RDAP JSON: {:?}", &req_res.res_data.rdap);
-                dbg!(&req_res.res_data.rdap);
                 writeln!(
                     write,
                     "{}",
@@ -329,7 +323,6 @@ fn do_final_output<W: std::io::Write>(
             }
         }
         OutputType::PrettyJson => {
-            // info!("Pretty RDAP JSON in output");
             for req_res in &transactions {
                 writeln!(
                     write,
@@ -339,13 +332,12 @@ fn do_final_output<W: std::io::Write>(
             }
         }
         OutputType::JsonExtra => {
-            // info!("Extra RDAP JSON in output");
             writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
         }
         OutputType::Gtld => {}
         _ => {
-            info!("No output type specified");
-            writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
+            // info!("No output type specified");
+            // writeln!(write, "{}", serde_json::to_string(&transactions).unwrap())?
         } // do nothing
     };
 

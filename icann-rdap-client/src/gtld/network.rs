@@ -9,21 +9,20 @@ impl ToGtld for Network {
         gtld.push_str(&self.common.to_gtld(params));
         let header_text = if self.start_address.is_some() && self.end_address.is_some() {
             format!(
-                "IP Network: {}-{}",
+                "IP Network: {}-{}\n",
                 &self.start_address.as_ref().unwrap(),
                 &self.end_address.as_ref().unwrap()
             )
         } else if let Some(start_address) = &self.start_address {
-            format!("IP Network: {start_address}")
+            format!("IP Network: {start_address}\n")
         } else if let Some(handle) = &self.object_common.handle {
-            format!("IP Network: {handle}")
+            format!("IP Network: {handle}\n")
         } else if let Some(name) = &self.name {
-            format!("IP Network: {name}")
+            format!("IP Network: {name}\n")
         } else {
-            "IP Network:".to_string()
+            "IP Network:\n".to_string()
         };
         gtld.push_str(&header_text);
-        gtld.push_str("\n");
         gtld
     }
 }

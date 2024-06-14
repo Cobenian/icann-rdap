@@ -1,4 +1,4 @@
-use super::{GtldParams, ToGtld};
+use super::{GtldParams, RoleInfo, ToGtld};
 use icann_rdap_common::contact::PostalAddress;
 use icann_rdap_common::response::domain::Domain;
 use icann_rdap_common::response::domain::SecureDns;
@@ -33,7 +33,7 @@ impl ToGtld for Domain {
 
         // registrar and abuse/tech/admin/registrant info
         let (formatted_data, _) =
-            extract_registrar_and_abuse_info(params, &self.object_common.entities);
+            extract_registrar_and_role_info(params, &self.object_common.entities);
         gtld.push_str(&formatted_data);
 
         // nameservers and network
@@ -111,7 +111,7 @@ fn format_domain_info(status: &Option<Vec<StatusValue>>, port_43: &Option<String
     let mut info = String::new();
     if let Some(status) = status {
         for value in status {
-            info.push_str(&format!("Domain Status: {}\n", value.to_string()));
+            info.push_str(&format!("Domain Status: {}\n", **value));
         }
     }
     if let Some(port_43) = port_43 {
@@ -185,58 +185,51 @@ fn format_last_update_info(events: &Option<Vec<Event>>, gtld: &mut String) {
 
 fn format_address_with_label(
     params: &mut GtldParams,
-    address_components: &Vec<serde_json::Value>,
+    address_components: &[serde_json::Value],
 ) -> String {
     let postal_address = PostalAddress::builder()
         .street_parts(
             address_components
                 .get(2)
                 .and_then(|v| v.as_str())
-                .map_or_else(|| Vec::new(), |s| vec![s.to_string()]),
+                .map_or_else(Vec::new, |s| vec![s.to_string()]),
         )
         .locality(
             address_components
                 .get(3)
                 .and_then(|v| v.as_str())
-                .map_or_else(|| String::new(), String::from),
+                .map_or_else(String::new, String::from),
         )
         .region_name(
             address_components
                 .get(4)
                 .and_then(|v| v.as_str())
-                .map_or_else(|| String::new(), String::from),
+                .map_or_else(String::new, String::from),
         )
         .country_name(
             address_components
                 .get(6)
                 .and_then(|v| v.as_str())
-                .map_or_else(|| String::new(), String::from),
+                .map_or_else(String::new, String::from),
         )
         .country_code(
             address_components
                 .get(6)
                 .and_then(|v| v.as_str())
-                .map_or_else(|| String::new(), String::from),
+                .map_or_else(String::new, String::from),
         )
         .postal_code(
             address_components
                 .get(5)
                 .and_then(|v| v.as_str())
-                .map_or_else(|| String::new(), String::from),
+                .map_or_else(String::new, String::from),
         )
         .build();
 
     postal_address.to_gtld(params).to_string()
 }
 
-struct RoleInfo {
-    name: String,
-    org: String,
-    url: String,
-    adr: String,
-}
-
-fn extract_registrar_and_abuse_info(
+fn extract_registrar_and_role_info(
     params: &mut GtldParams,
     entities: &Option<Vec<Entity>>,
 ) -> (String, String) {
@@ -271,13 +264,13 @@ fn extract_registrar_and_abuse_info(
                             // Special Sauce for Registrar IANA ID and Abuse Contact
                             if let Some(public_ids) = &entity.public_ids {
                                 for public_id in public_ids {
-                                    if public_id.id_type.as_str() == "IANA Registrar ID" {
-                                        if !public_id.identifier.is_empty() {
-                                            front_formatted_data += &format!(
-                                                "Registrar IANA ID: {}\n",
-                                                public_id.identifier.clone()
-                                            );
-                                        }
+                                    if public_id.id_type.as_str() == "IANA Registrar ID"
+                                        && !public_id.identifier.is_empty()
+                                    {
+                                        front_formatted_data += &format!(
+                                            "Registrar IANA ID: {}\n",
+                                            public_id.identifier.clone()
+                                        );
                                     }
                                 }
                             }
@@ -313,7 +306,7 @@ fn extract_registrar_and_abuse_info(
 
 fn extract_role_info(
     role: &str,
-    vcard_array: &Vec<serde_json::Value>,
+    vcard_array: &[serde_json::Value],
     params: &mut GtldParams,
 ) -> RoleInfo {
     let mut name = String::new();
@@ -398,10 +391,11 @@ fn append_abuse_contact_info(entity: &Entity, front_formatted_data: &mut String)
     }
 }
 
+// Where do we move this to?
 // capitalize first letter
 fn cfl(s: &str) -> String {
     s.char_indices()
         .next()
         .map(|(i, c)| c.to_uppercase().collect::<String>() + &s[i + 1..])
-        .unwrap_or_else(|| String::new())
+        .unwrap_or_default()
 }

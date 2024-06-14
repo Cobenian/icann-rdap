@@ -73,6 +73,13 @@ impl ToGtld for PostalAddress {
     }
 }
 
+pub struct RoleInfo {
+    name: String,
+    org: String,
+    url: String,
+    adr: String,
+}
+
 pub struct ContactInfo {
     registrar_name: String,
     registrar_url: String,
