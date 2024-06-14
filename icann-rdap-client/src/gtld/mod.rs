@@ -43,8 +43,6 @@ impl ToGtld for RdapResponse {
         let mut gtld = String::new();
         let variant_gtld = match &self {
             RdapResponse::Domain(domain) => domain.to_gtld(params),
-            RdapResponse::Nameserver(nameserver) => nameserver.to_gtld(params),
-            // NOP
             _ => String::new(),
         };
         gtld.push_str(&variant_gtld);
